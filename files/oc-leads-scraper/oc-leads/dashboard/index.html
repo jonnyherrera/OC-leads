@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Swift Offers — Lead Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── RESET & BASE ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #09090d;
+      --bg2:       #111118;
+      --bg3:       #16161f;
+      --border:    #222232;
+      --border2:   #2e2e42;
+      --text:      #e2e2f0;
+      --muted:     #6b6b8a;
+      --accent:    #ff5c3a;
+      --accent2:   #ff8c6b;
+      --green:     #22d97e;
+      --blue:      #4d9fff;
+      --amber:     #ffb340;
+      --purple:    #b06fff;
+      --teal:      #2ee8c5;
+      --coral:     #ff5c3a;
+
+      --cat-prefc:  #ff5c3a;
+      --cat-jud:    #4d9fff;
+      --cat-tax:    #ffb340;
+      --cat-mech:   #b06fff;
+      --cat-gen:    #2ee8c5;
+      --cat-hoa:    #ff8c6b;
+      --cat-med:    #ff4d88;
+      --cat-pro:    #a8ff78;
+      --cat-noc:    #f0e040;
+      --cat-rel:    #6b6b8a;
+
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── SCAN LINES overlay ─────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,.12) 2px,
+        rgba(0,0,0,.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── TOP HEADER ─────────────────────────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9,9,13,.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .logo {
+      font-family: var(--font-head);
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 1px;
+    }
+
+    .header-meta {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      line-height: 1.6;
+    }
+
+    .header-meta span { color: var(--green); }
+
+    /* ── STAT TILES ─────────────────────────────────────────────────── */
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      padding: 20px 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .tile {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .tile:hover { border-color: var(--border2); }
+
+    .tile::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .tile.t-total::after    { background: var(--coral); }
+    .tile.t-addr::after     { background: var(--green); }
+    .tile.t-score::after    { background: var(--amber); }
+    .tile.t-week::after     { background: var(--blue); }
+    .tile.t-prefc::after    { background: var(--cat-prefc); }
+    .tile.t-jud::after      { background: var(--cat-jud); }
+    .tile.t-tax::after      { background: var(--cat-tax); }
+    .tile.t-pro::after      { background: var(--cat-pro); }
+
+    .tile-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .tile-value {
+      font-family: var(--font-head);
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .tile.t-total .tile-value    { color: var(--coral); }
+    .tile.t-addr .tile-value     { color: var(--green); }
+    .tile.t-score .tile-value    { color: var(--amber); }
+    .tile.t-week .tile-value     { color: var(--blue); }
+    .tile.t-prefc .tile-value    { color: var(--cat-prefc); }
+    .tile.t-jud .tile-value      { color: var(--cat-jud); }
+    .tile.t-tax .tile-value      { color: var(--cat-tax); }
+    .tile.t-pro .tile-value      { color: var(--cat-pro); }
+
+    /* ── CONTROLS ───────────────────────────────────────────────────── */
+    .controls {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+
+    input[type="text"], select {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 9px 12px 9px 36px;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    select { padding-left: 12px; min-width: 160px; width: auto; }
+
+    .btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 9px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: .5px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+
+    .score-filter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .score-filter input[type="range"] {
+      padding: 0;
+      width: 100px;
+      accent-color: var(--accent);
+      background: transparent;
+      border: none;
+    }
+
+    /* ── TABLE ──────────────────────────────────────────────────────── */
+    .table-wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead tr {
+      background: var(--bg2);
+      border-bottom: 2px solid var(--border2);
+    }
+
+    th {
+      padding: 10px 12px;
+      text-align: left;
+      font-family: var(--font-head);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--accent); }
+    th .sort-icon { margin-left: 4px; opacity: .5; }
+    th.sorted .sort-icon { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+      cursor: pointer;
+    }
+
+    tbody tr:hover { background: var(--bg3); }
+
+    td {
+      padding: 10px 12px;
+      vertical-align: middle;
+    }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 24px;
+      border-radius: 4px;
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* Category pill */
+    .cat-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      white-space: nowrap;
+    }
+
+    /* Flag tags */
+    .flags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .flag-tag {
+      font-size: 9px;
+      padding: 2px 5px;
+      border-radius: 2px;
+      background: rgba(255,255,255,.05);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .flag-tag.hot { background: rgba(255,92,58,.1); color: var(--coral); border-color: rgba(255,92,58,.3); }
+    .flag-tag.warn { background: rgba(255,179,64,.08); color: var(--amber); border-color: rgba(255,179,64,.25); }
+
+    .link-cell a {
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 11px;
+    }
+
+    .link-cell a:hover { color: var(--accent); text-decoration: underline; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--muted);
+    }
+
+    .empty-state h3 {
+      font-family: var(--font-head);
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    /* ── DETAIL MODAL ───────────────────────────────────────────────── */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      z-index: 500;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-bg.open { display: flex; align-items: center; justify-content: center; }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 720px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px 32px;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 20px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    .modal-title {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .modal-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 24px;
+    }
+
+    .modal-field label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .modal-field .val {
+      font-size: 13px;
+      word-break: break-word;
+    }
+
+    .modal-score-bar {
+      margin: 20px 0 16px;
+    }
+
+    .score-bar-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .6s ease;
+    }
+
+    .modal-flags {
+      margin-top: 16px;
+    }
+
+    /* ── LOADING ─────────────────────────────────────────────────────── */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 9000;
+    }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loading p {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    /* ── FOOTER ──────────────────────────────────────────────────────── */
+    footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 36px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 10px;
+      color: var(--muted);
+      z-index: 100;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .tiles { grid-template-columns: repeat(2, 1fr); padding: 12px; }
+      .controls { padding: 0 12px 12px; }
+      .table-wrap { padding: 0 12px 60px; }
+      .modal-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOADING ──────────────────────────────────────────────────────────── -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>LOADING LEADS...</p>
+</div>
+
+<!-- ── HEADER ───────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    ⚡ SWIFT OFFERS
+    <span class="logo-badge">INTEL</span>
+  </div>
+  <div class="header-meta" id="headerMeta">
+    <span>Orange County, FL</span> · Motivated Seller Leads<br/>
+    Last run: <span id="lastRun">—</span>
+  </div>
+</header>
+
+<!-- ── STAT TILES ────────────────────────────────────────────────────────── -->
+<div class="tiles" id="tiles">
+  <div class="tile t-total">
+    <div class="tile-label">Total Leads</div>
+    <div class="tile-value" id="tTotal">—</div>
+  </div>
+  <div class="tile t-addr">
+    <div class="tile-label">With Address</div>
+    <div class="tile-value" id="tAddr">—</div>
+  </div>
+  <div class="tile t-score">
+    <div class="tile-label">Avg Score</div>
+    <div class="tile-value" id="tScore">—</div>
+  </div>
+  <div class="tile t-week">
+    <div class="tile-label">New This Week</div>
+    <div class="tile-value" id="tWeek">—</div>
+  </div>
+  <div class="tile t-prefc">
+    <div class="tile-label">Pre-Foreclosure</div>
+    <div class="tile-value" id="tPrefc">—</div>
+  </div>
+  <div class="tile t-jud">
+    <div class="tile-label">Judgments</div>
+    <div class="tile-value" id="tJud">—</div>
+  </div>
+  <div class="tile t-tax">
+    <div class="tile-label">Tax Liens</div>
+    <div class="tile-value" id="tTax">—</div>
+  </div>
+  <div class="tile t-pro">
+    <div class="tile-label">Probate</div>
+    <div class="tile-value" id="tPro">—</div>
+  </div>
+</div>
+
+<!-- ── CONTROLS ──────────────────────────────────────────────────────────── -->
+<div class="controls">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search owner, address, doc #..." />
+  </div>
+
+  <select id="catFilter">
+    <option value="">All Categories</option>
+    <option value="Pre-Foreclosure">Pre-Foreclosure</option>
+    <option value="Judgment Lien">Judgment Lien</option>
+    <option value="Tax / Govt Lien">Tax / Govt Lien</option>
+    <option value="Mechanic Lien">Mechanic Lien</option>
+    <option value="HOA Lien">HOA Lien</option>
+    <option value="General Lien">General Lien</option>
+    <option value="Govt / Medical Lien">Govt / Medical Lien</option>
+    <option value="Probate">Probate</option>
+    <option value="NOC">NOC</option>
+    <option value="Release">Release</option>
+  </select>
+
+  <select id="typeFilter">
+    <option value="">All Doc Types</option>
+    <option value="LP">LP – Lis Pendens</option>
+    <option value="NOFC">NOFC – Notice of FC</option>
+    <option value="TAXDEED">TAXDEED – Tax Deed</option>
+    <option value="JUD">JUD – Judgment</option>
+    <option value="CCJ">CCJ – Certified Judgment</option>
+    <option value="DRJUD">DRJUD – Domestic Judgment</option>
+    <option value="LNCORPTX">LNCORPTX – Corp Tax Lien</option>
+    <option value="LNIRS">LNIRS – IRS Lien</option>
+    <option value="LNFED">LNFED – Federal Lien</option>
+    <option value="LN">LN – Lien</option>
+    <option value="LNMECH">LNMECH – Mechanic Lien</option>
+    <option value="LNHOA">LNHOA – HOA Lien</option>
+    <option value="MEDLN">MEDLN – Medicaid Lien</option>
+    <option value="PRO">PRO – Probate</option>
+    <option value="NOC">NOC – Notice of Commencement</option>
+    <option value="RELLP">RELLP – Release LP</option>
+  </select>
+
+  <label class="score-filter">
+    Score ≥ <span id="scoreVal">0</span>
+    <input type="range" id="scoreRange" min="0" max="100" value="0" step="5" />
+  </label>
+
+  <button class="btn primary" id="exportBtn">⬇ Export CSV</button>
+</div>
+
+<!-- ── TABLE ─────────────────────────────────────────────────────────────── -->
+<div class="table-wrap">
+  <table id="leadsTable">
+    <thead>
+      <tr>
+        <th data-col="score" class="sorted">Score <span class="sort-icon">↓</span></th>
+        <th data-col="filed">Filed <span class="sort-icon">↕</span></th>
+        <th data-col="doc_type">Type <span class="sort-icon">↕</span></th>
+        <th data-col="cat_label">Category <span class="sort-icon">↕</span></th>
+        <th data-col="owner">Owner <span class="sort-icon">↕</span></th>
+        <th data-col="prop_address">Property Address <span class="sort-icon">↕</span></th>
+        <th data-col="amount">Amount <span class="sort-icon">↕</span></th>
+        <th>Flags</th>
+        <th>Doc Link</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div id="noResults" class="empty-state" style="display:none">
+    <h3>No leads match your filters</h3>
+    <p>Try adjusting the search query or category filter.</p>
+  </div>
+</div>
+
+<!-- ── DETAIL MODAL ───────────────────────────────────────────────────────── -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-title" id="modalTitle">—</div>
+    <div class="modal-sub" id="modalSub">—</div>
+
+    <div class="modal-score-bar">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Seller Score</span>
+        <span id="modalScore" style="font-family:var(--font-head);font-size:24px;font-weight:800">—</span>
+      </div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="modalScoreBar"></div>
+      </div>
+    </div>
+
+    <div class="modal-grid" id="modalGrid"></div>
+
+    <div class="modal-flags" id="modalFlags"></div>
+
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+      <a id="modalDocLink" href="#" target="_blank" class="btn">🔗 View Document</a>
+      <button class="btn" onclick="copyGHL()">📋 Copy for GHL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────────────────── -->
+<footer>
+  <div><span class="live-dot"></span>Orange County Clerk · myorangeclerk.com</div>
+  <div id="footerCount">Showing — of — leads</div>
+</footer>
+
+<script>
+/* ── DATA & STATE ─────────────────────────────────────────────────────── */
+let ALL_RECORDS = [];
+let FILTERED    = [];
+let currentRec  = null;
+let sortCol     = 'score';
+let sortDir     = -1; // -1 = desc
+
+/* ── CATEGORY COLOR MAP ───────────────────────────────────────────────── */
+const CAT_COLORS = {
+  'Pre-Foreclosure':       'var(--cat-prefc)',
+  'Judgment Lien':         'var(--cat-jud)',
+  'Tax / Govt Lien':       'var(--cat-tax)',
+  'Mechanic Lien':         'var(--cat-mech)',
+  'General Lien':          'var(--cat-gen)',
+  'HOA Lien':              'var(--cat-hoa)',
+  'Govt / Medical Lien':   'var(--cat-med)',
+  'Probate':               'var(--cat-pro)',
+  'NOC':                   'var(--cat-noc)',
+  'Release':               'var(--cat-rel)',
+};
+
+function catColor(cat) {
+  return CAT_COLORS[cat] || 'var(--muted)';
+}
+
+function scoreColor(s) {
+  if (s >= 80) return '#ff5c3a';
+  if (s >= 60) return '#ffb340';
+  if (s >= 40) return '#4d9fff';
+  return '#6b6b8a';
+}
+
+/* ── LOAD DATA ──────────────────────────────────────────────────────────── */
+async function loadData() {
+  try {
+    const r = await fetch('records.json?v=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+
+    ALL_RECORDS = (data.records || []).sort((a, b) => b.score - a.score);
+
+    document.getElementById('lastRun').textContent =
+      data.fetched_at ? new Date(data.fetched_at).toLocaleString() : '—';
+
+    renderTiles(data);
+    applyFilters();
+  } catch (e) {
+    console.error('Failed to load records.json', e);
+    // Show demo state when no data
+    document.getElementById('tTotal').textContent = '0';
+    document.getElementById('tAddr').textContent  = '0';
+    document.getElementById('tScore').textContent = '—';
+    document.getElementById('tWeek').textContent  = '0';
+    document.getElementById('tPrefc').textContent = '0';
+    document.getElementById('tJud').textContent   = '0';
+    document.getElementById('tTax').textContent   = '0';
+    document.getElementById('tPro').textContent   = '0';
+    document.getElementById('lastRun').textContent = 'No data yet — run scraper';
+    document.getElementById('noResults').style.display = 'block';
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function renderTiles(data) {
+  const recs = data.records || [];
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0,10);
+
+  document.getElementById('tTotal').textContent = recs.length;
+  document.getElementById('tAddr').textContent  = data.with_address || 0;
+
+  const avg = recs.length
+    ? Math.round(recs.reduce((s, r) => s + (r.score||0), 0) / recs.length)
+    : 0;
+  document.getElementById('tScore').textContent = avg;
+
+  const week = recs.filter(r => r.filed >= weekAgo).length;
+  document.getElementById('tWeek').textContent = week;
+
+  const prefc = recs.filter(r => r.cat_label === 'Pre-Foreclosure').length;
+  document.getElementById('tPrefc').textContent = prefc;
+
+  const jud = recs.filter(r => r.cat_label === 'Judgment Lien').length;
+  document.getElementById('tJud').textContent = jud;
+
+  const tax = recs.filter(r => r.cat_label === 'Tax / Govt Lien').length;
+  document.getElementById('tTax').textContent = tax;
+
+  const pro = recs.filter(r => r.cat_label === 'Probate').length;
+  document.getElementById('tPro').textContent = pro;
+}
+
+/* ── FILTERS ────────────────────────────────────────────────────────────── */
+function applyFilters() {
+  const q     = document.getElementById('searchInput').value.trim().toLowerCase();
+  const cat   = document.getElementById('catFilter').value;
+  const type  = document.getElementById('typeFilter').value;
+  const minSc = parseInt(document.getElementById('scoreRange').value);
+
+  FILTERED = ALL_RECORDS.filter(r => {
+    if (cat  && r.cat_label !== cat)  return false;
+    if (type && r.doc_type  !== type) return false;
+    if (r.score < minSc) return false;
+    if (q) {
+      const hay = [r.owner, r.prop_address, r.doc_num, r.grantee, r.legal,
+                   r.mail_address].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  sortRecords();
+  renderTable();
+}
+
+function sortRecords() {
+  FILTERED.sort((a, b) => {
+    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    if (typeof av === 'number') return sortDir * (av - bv);
+    return sortDir * String(av).localeCompare(String(bv));
+  });
+}
+
+/* ── TABLE RENDER ───────────────────────────────────────────────────────── */
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const noRes = document.getElementById('noResults');
+
+  if (!FILTERED.length) {
+    tbody.innerHTML = '';
+    noRes.style.display = 'block';
+    document.getElementById('footerCount').textContent = 'Showing 0 of 0 leads';
+    return;
+  }
+
+  noRes.style.display = 'none';
+  document.getElementById('footerCount').textContent =
+    `Showing ${FILTERED.length} of ${ALL_RECORDS.length} leads`;
+
+  tbody.innerHTML = FILTERED.map((r, i) => {
+    const sc  = r.score || 0;
+    const col = scoreColor(sc);
+    const cc  = catColor(r.cat_label);
+
+    const flags = (r.flags || []).map(f => {
+      const hot = ['Lis pendens','Pre-foreclosure','New this week'].includes(f);
+      const warn = f.includes('$') || f.includes('debt');
+      return `<span class="flag-tag${hot?' hot':warn?' warn':''}">${f}</span>`;
+    }).join('');
+
+    const addr = r.prop_address
+      ? `${r.prop_address}<br/><small style="color:var(--muted)">${r.prop_city||''} ${r.prop_zip||''}</small>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const link = r.clerk_url
+      ? `<a href="${r.clerk_url}" target="_blank" onclick="event.stopPropagation()">🔗 View</a>`
+      : '—';
+
+    return `<tr onclick="openModal(${i})">
+      <td><span class="score-badge" style="background:${col}22;color:${col};border:1px solid ${col}44">${sc}</span></td>
+      <td style="color:var(--muted)">${r.filed||'—'}</td>
+      <td><code style="font-size:10px;color:var(--amber)">${r.doc_type||'—'}</code></td>
+      <td><span class="cat-pill" style="background:${cc}18;color:${cc};border:1px solid ${cc}35">${r.cat_label||'—'}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.owner||''}">${r.owner||'—'}</td>
+      <td style="max-width:200px;font-size:11px">${addr}</td>
+      <td style="color:var(--green);white-space:nowrap">${r.amount||'—'}</td>
+      <td><div class="flags">${flags||'—'}</div></td>
+      <td class="link-cell">${link}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── MODAL ──────────────────────────────────────────────────────────────── */
+function openModal(idx) {
+  const r = FILTERED[idx];
+  if (!r) return;
+  currentRec = r;
+
+  const sc  = r.score || 0;
+  const col = scoreColor(sc);
+  const cc  = catColor(r.cat_label);
+
+  document.getElementById('modalTitle').textContent = r.owner || 'Unknown Owner';
+  document.getElementById('modalSub').textContent   =
+    `${r.doc_type} · ${r.cat_label} · Filed ${r.filed||'—'} · Doc #${r.doc_num||'—'}`;
+
+  document.getElementById('modalScore').textContent     = sc;
+  document.getElementById('modalScore').style.color     = col;
+  document.getElementById('modalScoreBar').style.width  = sc + '%';
+  document.getElementById('modalScoreBar').style.background = col;
+
+  const fields = [
+    ['Document #',        r.doc_num],
+    ['Document Type',     r.doc_type],
+    ['Filed Date',        r.filed],
+    ['Amount',            r.amount || '—'],
+    ['Grantee',           r.grantee || '—'],
+    ['Property Address',  [r.prop_address, r.prop_city, r.prop_state, r.prop_zip].filter(Boolean).join(', ') || '—'],
+    ['Mailing Address',   [r.mail_address, r.mail_city, r.mail_state, r.mail_zip].filter(Boolean).join(', ') || '—'],
+    ['Legal Description', r.legal || '—'],
+  ];
+
+  document.getElementById('modalGrid').innerHTML = fields.map(([l, v]) =>
+    `<div class="modal-field"><label>${l}</label><div class="val">${v||'—'}</div></div>`
+  ).join('');
+
+  const flags = (r.flags||[]).map(f => {
+    const hot = ['Lis pendens','Pre-foreclosure','New this week'].includes(f);
+    return `<span class="flag-tag${hot?' hot':''}" style="font-size:11px;padding:3px 8px">${f}</span>`;
+  }).join('');
+  document.getElementById('modalFlags').innerHTML = flags
+    ? `<div style="margin-bottom:6px;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Flags</div><div class="flags">${flags}</div>`
+    : '';
+
+  const docLink = document.getElementById('modalDocLink');
+  docLink.href = r.clerk_url || '#';
+  if (!r.clerk_url) docLink.style.opacity = '.4';
+  else docLink.style.opacity = '1';
+
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('open');
+}
+
+function copyGHL() {
+  if (!currentRec) return;
+  const r = currentRec;
+  const lines = [
+    `First Name: ${(r.owner||'').split(' ')[0]}`,
+    `Last Name: ${(r.owner||'').split(' ').slice(1).join(' ')}`,
+    `Mailing Address: ${r.mail_address||''}`,
+    `Mailing City: ${r.mail_city||''}`,
+    `Mailing State: ${r.mail_state||''}`,
+    `Mailing Zip: ${r.mail_zip||''}`,
+    `Property Address: ${r.prop_address||''}`,
+    `Property City: ${r.prop_city||''}`,
+    `Property State: ${r.prop_state||'FL'}`,
+    `Property Zip: ${r.prop_zip||''}`,
+    `Lead Type: ${r.cat_label||''}`,
+    `Document Type: ${r.doc_type||''}`,
+    `Date Filed: ${r.filed||''}`,
+    `Document Number: ${r.doc_num||''}`,
+    `Amount/Debt Owed: ${r.amount||''}`,
+    `Seller Score: ${r.score||0}`,
+    `Flags: ${(r.flags||[]).join(' | ')}`,
+    `Source: Orange County Clerk`,
+    `URL: ${r.clerk_url||''}`,
+  ].join('\n');
+  navigator.clipboard.writeText(lines).then(() => alert('Copied to clipboard!'));
+}
+
+/* ── CSV EXPORT ─────────────────────────────────────────────────────────── */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const cols = [
+    'First Name','Last Name',
+    'Mailing Address','Mailing City','Mailing State','Mailing Zip',
+    'Property Address','Property City','Property State','Property Zip',
+    'Lead Type','Document Type','Date Filed','Document Number',
+    'Amount/Debt Owed','Seller Score','Motivated Seller Flags',
+    'Source','Public Records URL',
+  ];
+
+  const rows = FILTERED.map(r => {
+    const parts = (r.owner||'').split(' ');
+    return [
+      parts[0]||'', parts.slice(1).join(' ')||'',
+      r.mail_address||'', r.mail_city||'', r.mail_state||'', r.mail_zip||'',
+      r.prop_address||'', r.prop_city||'FL', r.prop_state||'FL', r.prop_zip||'',
+      r.cat_label||'', r.doc_type||'', r.filed||'', r.doc_num||'',
+      r.amount||'', r.score||0,
+      (r.flags||[]).join(' | '),
+      'Orange County Clerk – myorangeclerk.com',
+      r.clerk_url||'',
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+
+  const csv  = [cols.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `swift_offers_leads_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
+/* ── SORT ───────────────────────────────────────────────────────────────── */
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = -1; }
+
+    document.querySelectorAll('th').forEach(t => {
+      t.classList.remove('sorted');
+      const icon = t.querySelector('.sort-icon');
+      if (icon) icon.textContent = '↕';
+    });
+    th.classList.add('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = sortDir === -1 ? '↓' : '↑';
+
+    sortRecords();
+    renderTable();
+  });
+});
+
+/* ── EVENT LISTENERS ────────────────────────────────────────────────────── */
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('catFilter').addEventListener('change', applyFilters);
+document.getElementById('typeFilter').addEventListener('change', applyFilters);
+document.getElementById('scoreRange').addEventListener('input', e => {
+  document.getElementById('scoreVal').textContent = e.target.value;
+  applyFilters();
+});
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalBg').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalBg')) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+/* ── BOOT ───────────────────────────────────────────────────────────────── */
+loadData();
+</script>
+</body>
+</html>

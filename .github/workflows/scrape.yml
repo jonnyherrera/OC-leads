@@ -1,0 +1,89 @@
+name: Scrape Orange County Leads
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 7:00 AM UTC daily (3:00 AM ET)
+  workflow_dispatch:        # manual trigger from Actions tab
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml dbfread playwright
+
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps chromium
+
+      - name: Cache parcel ZIP
+        uses: actions/cache@v4
+        with:
+          path: data/parcel_data.zip
+          key: parcel-zip-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            parcel-zip-${{ runner.os }}-
+
+      - name: Run scraper
+        env:
+          LOOKBACK_DAYS: "7"
+          PYTHONUNBUFFERED: "1"
+        run: python scraper/fetch.py
+
+      - name: Commit & push records
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name  "github-actions[bot]"
+          git add dashboard/records.json data/records.json data/leads_export.csv || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: scrape results – $TIMESTAMP [skip ci]"
+            git push
+          fi
+
+  deploy-pages:
+    needs: scrape
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

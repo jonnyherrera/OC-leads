@@ -1,7 +1,7 @@
 """
 Orange County FL – Motivated Seller Lead Scraper
-Fetches clerk records + enriches with property appraiser data.
-Outputs: dashboard/records.json, data/records.json, data/leads_export.csv
+Real data source: Orange County Comptroller Official Records
+URL: https://selfservice.or.occompt.com/ssweb/
 """
 
 import asyncio
@@ -11,9 +11,8 @@ import re
 import csv
 import time
 import logging
-import traceback
 import zipfile
-import io
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -22,24 +21,19 @@ import requests
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
-# ── optional dbfread ──────────────────────────────────────────────────────────
 try:
     from dbfread import DBF
     HAS_DBF = True
 except ImportError:
     HAS_DBF = False
-    logging.warning("dbfread not installed – parcel enrichment disabled")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONFIG
-# ─────────────────────────────────────────────────────────────────────────────
-LOOKBACK_DAYS   = int(os.getenv("LOOKBACK_DAYS", 7))
-CLERK_BASE      = "https://www.myorangeclerk.com"
-CLERK_SEARCH    = f"{CLERK_BASE}/officialrecords/search"
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+LOOKBACK_DAYS = int(os.getenv("LOOKBACK_DAYS", 7))
 
-# Orange County Property Appraiser bulk data
-OCPA_BULK_BASE  = "https://www.ocpafl.org"
-OCPA_BULK_URL   = "https://www.ocpafl.org/downloads/Parcel_Data.zip"
+OR_BASE       = "https://selfservice.or.occompt.com/ssweb"
+OR_DISCLAIMER = f"{OR_BASE}/user/disclaimer"
+OR_SEARCH     = f"{OR_BASE}/document/search"
+OCPA_BULK_URL = "https://www.ocpafl.org/downloads/Parcel_Data.zip"
 
 LEAD_TYPES = {
     "LP":       ("Lis Pendens",             "Pre-Foreclosure"),
@@ -60,16 +54,14 @@ LEAD_TYPES = {
     "RELLP":    ("Release Lis Pendens",     "Release"),
 }
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT          = Path(__file__).resolve().parent.parent
 DATA_DIR      = ROOT / "data"
 DASHBOARD_DIR = ROOT / "dashboard"
 DATA_DIR.mkdir(exist_ok=True)
 DASHBOARD_DIR.mkdir(exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
 
 SESSION = requests.Session()
@@ -78,9 +70,7 @@ SESSION.headers.update({
                   "(KHTML, like Gecko) Chrome/120 Safari/537.36"
 })
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 
 def safe_strip(v) -> str:
     return str(v).strip() if v else ""
@@ -102,25 +92,18 @@ def retry(fn, attempts=3, delay=4):
                 time.sleep(delay * (i + 1))
     return None
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PARCEL DATA
-# ─────────────────────────────────────────────────────────────────────────────
+# ── PARCEL LOOKUP ─────────────────────────────────────────────────────────────
 
 class ParcelLookup:
-    """Downloads OCPA bulk parcel ZIP/DBF and builds owner→address index."""
-
     def __init__(self):
-        self.by_owner: dict[str, dict] = {}   # normalized name → parcel
-        self.by_parcel: dict[str, dict] = {}  # parcel_id → parcel
+        self.by_owner: dict = {}
 
-    def _norm_name(self, name: str) -> str:
+    def _norm(self, name: str) -> str:
         return re.sub(r"\s+", " ", name.upper().strip())
 
-    def _name_variants(self, raw: str) -> list[str]:
-        """Generate FIRST LAST / LAST FIRST / LAST, FIRST variants."""
-        name = self._norm_name(raw)
+    def _variants(self, raw: str) -> list:
+        name = self._norm(raw)
         variants = [name]
-        # if comma present: "LAST, FIRST" → also try "FIRST LAST"
         if "," in name:
             parts = [p.strip() for p in name.split(",", 1)]
             if len(parts) == 2:
@@ -129,264 +112,300 @@ class ParcelLookup:
             parts = name.split()
             if len(parts) >= 2:
                 variants.append(f"{parts[-1]}, {' '.join(parts[:-1])}")
-                variants.append(f"{parts[-1]} {' '.join(parts[:-1])}")
         return list(dict.fromkeys(variants))
 
     def _load_dbf(self, dbf_path: Path):
         if not HAS_DBF:
-            log.warning("dbfread unavailable; skipping DBF parse")
             return
-        log.info(f"Loading parcel DBF: {dbf_path}")
+        log.info(f"Loading DBF: {dbf_path}")
         col_map = {
-            "owner":     ["OWNER", "OWN1", "OWN_NAME"],
-            "site_addr": ["SITE_ADDR", "SITEADDR", "SITE_ADDRESS"],
-            "site_city": ["SITE_CITY", "SITECITY"],
-            "site_zip":  ["SITE_ZIP", "SITEZIP", "SITE_ZIP5"],
-            "mail_addr": ["ADDR_1", "MAILADR1", "MAIL_ADDR"],
-            "mail_city": ["CITY", "MAILCITY", "MAIL_CITY"],
-            "mail_state":["STATE", "MAILSTATE", "MAIL_STATE"],
-            "mail_zip":  ["ZIP", "MAILZIP", "MAIL_ZIP"],
-            "parcel_id": ["PARCEL_ID", "PARCELID", "FOLIO", "PARNO"],
+            "owner":      ["OWNER", "OWN1"],
+            "site_addr":  ["SITE_ADDR", "SITEADDR"],
+            "site_city":  ["SITE_CITY", "SITECITY"],
+            "site_zip":   ["SITE_ZIP", "SITEZIP"],
+            "mail_addr":  ["ADDR_1", "MAILADR1"],
+            "mail_city":  ["CITY", "MAILCITY"],
+            "mail_state": ["STATE", "MAILSTATE"],
+            "mail_zip":   ["ZIP", "MAILZIP"],
         }
-
         try:
             table = DBF(str(dbf_path), ignore_missing_memofile=True)
             fields = [f.name.upper() for f in table.fields]
 
-            def find_col(keys):
+            def fc(keys):
                 for k in keys:
                     if k in fields:
                         return k
                 return None
 
-            cols = {k: find_col(v) for k, v in col_map.items()}
-            log.info(f"DBF columns mapped: {cols}")
-
+            cols = {k: fc(v) for k, v in col_map.items()}
             count = 0
             for rec in table:
                 try:
                     owner_raw = safe_strip(rec.get(cols["owner"]) if cols["owner"] else "")
                     if not owner_raw:
                         continue
-                    parcel = {
-                        "owner":       owner_raw,
-                        "site_addr":   safe_strip(rec.get(cols["site_addr"]) if cols["site_addr"] else ""),
-                        "site_city":   safe_strip(rec.get(cols["site_city"]) if cols["site_city"] else ""),
-                        "site_zip":    safe_strip(rec.get(cols["site_zip"]) if cols["site_zip"] else ""),
-                        "mail_addr":   safe_strip(rec.get(cols["mail_addr"]) if cols["mail_addr"] else ""),
-                        "mail_city":   safe_strip(rec.get(cols["mail_city"]) if cols["mail_city"] else ""),
-                        "mail_state":  safe_strip(rec.get(cols["mail_state"]) if cols["mail_state"] else ""),
-                        "mail_zip":    safe_strip(rec.get(cols["mail_zip"]) if cols["mail_zip"] else ""),
-                        "parcel_id":   safe_strip(rec.get(cols["parcel_id"]) if cols["parcel_id"] else ""),
-                    }
-                    pid = parcel["parcel_id"]
-                    if pid:
-                        self.by_parcel[pid] = parcel
-                    for v in self._name_variants(owner_raw):
+                    parcel = {k: safe_strip(rec.get(cols[k]) if cols[k] else "")
+                              for k in col_map}
+                    for v in self._variants(owner_raw):
                         self.by_owner.setdefault(v, parcel)
                     count += 1
                 except Exception:
                     pass
-            log.info(f"Loaded {count:,} parcel records; {len(self.by_owner):,} owner entries")
+            log.info(f"Loaded {count:,} parcels")
         except Exception as exc:
-            log.error(f"DBF load failed: {exc}")
+            log.error(f"DBF error: {exc}")
 
     def download_and_load(self):
-        """Download OCPA bulk ZIP, extract DBF, load index."""
         zip_path = DATA_DIR / "parcel_data.zip"
 
-        # Try download
-        def do_download():
-            log.info(f"Downloading parcel data from {OCPA_BULK_URL}")
+        def do_dl():
             r = SESSION.get(OCPA_BULK_URL, timeout=120, stream=True)
             r.raise_for_status()
             with open(zip_path, "wb") as f:
                 for chunk in r.iter_content(65536):
                     f.write(chunk)
-            log.info(f"Downloaded {zip_path.stat().st_size / 1_048_576:.1f} MB")
+            mb = zip_path.stat().st_size / 1_048_576
+            if mb < 0.5:
+                raise ValueError(f"ZIP too small ({mb:.1f}MB)")
+            log.info(f"Parcel ZIP: {mb:.1f}MB")
 
-        # Use cached if < 20 hours old
         if zip_path.exists() and (time.time() - zip_path.stat().st_mtime) < 72_000:
             log.info("Using cached parcel ZIP")
         else:
-            result = retry(do_download, attempts=3, delay=5)
-            if result is None and not zip_path.exists():
-                log.error("Could not download parcel data; enrichment disabled")
+            retry(do_dl, 3, 5)
+            if not zip_path.exists():
                 return
 
-        # Extract DBF
         try:
             with zipfile.ZipFile(zip_path) as zf:
                 dbf_files = [n for n in zf.namelist() if n.upper().endswith(".DBF")]
-                if not dbf_files:
-                    log.warning("No DBF found in parcel ZIP")
-                    return
-                dbf_name = dbf_files[0]
-                dbf_path = DATA_DIR / Path(dbf_name).name
-                with zf.open(dbf_name) as src, open(dbf_path, "wb") as dst:
-                    dst.write(src.read())
-                log.info(f"Extracted {dbf_name}")
-            self._load_dbf(dbf_path)
+                if dbf_files:
+                    dbf_path = DATA_DIR / Path(dbf_files[0]).name
+                    with zf.open(dbf_files[0]) as src, open(dbf_path, "wb") as dst:
+                        dst.write(src.read())
+                    self._load_dbf(dbf_path)
         except Exception as exc:
-            log.error(f"ZIP extraction error: {exc}")
+            log.error(f"ZIP error: {exc}")
 
-    def lookup(self, owner_name: str) -> Optional[dict]:
-        for v in self._name_variants(owner_name):
-            hit = self.by_owner.get(v)
-            if hit:
-                return hit
+    def lookup(self, owner: str) -> Optional[dict]:
+        for v in self._variants(owner):
+            if v in self.by_owner:
+                return self.by_owner[v]
         return None
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CLERK SCRAPER (Playwright async)
-# ─────────────────────────────────────────────────────────────────────────────
+# ── PLAYWRIGHT ────────────────────────────────────────────────────────────────
 
-async def fetch_clerk_records(doc_type: str, date_from: str, date_to: str) -> list[dict]:
-    """
-    Uses Playwright to search the Orange County Clerk portal
-    for a given document type within a date range.
-    Returns raw record dicts.
-    """
-    records = []
-    url = CLERK_SEARCH
+async def accept_disclaimer(page) -> bool:
+    try:
+        await page.goto(OR_DISCLAIMER, timeout=30_000)
+        await page.wait_for_load_state("networkidle", timeout=15_000)
 
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        ctx = await browser.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                       "(KHTML, like Gecko) Chrome/120 Safari/537.36"
-        )
-        page = await ctx.new_page()
-
-        try:
-            log.info(f"Fetching {doc_type} | {date_from} → {date_to}")
-            await page.goto(url, timeout=30_000)
-            await page.wait_for_load_state("networkidle", timeout=15_000)
-
-            # ── Fill search form ──────────────────────────────────────────
-            # Doc type dropdown / text field (varies by site version)
+        for sel in ["input[value*='Accept']", "button:has-text('Accept')",
+                    "a:has-text('Accept')", "input[type='submit']",
+                    "button:has-text('I Accept')", "button:has-text('Continue')"]:
             try:
-                await page.select_option("select[name*='DocType'], select[id*='docType']",
-                                          value=doc_type, timeout=5_000)
+                btn = page.locator(sel).first
+                if await btn.is_visible(timeout=2_000):
+                    await btn.click(timeout=5_000)
+                    await page.wait_for_load_state("networkidle", timeout=10_000)
+                    log.info("Disclaimer accepted via click")
+                    return True
             except Exception:
-                try:
-                    field = page.locator(
-                        "input[name*='docType'], input[placeholder*='Document Type']"
-                    ).first
-                    await field.fill(doc_type, timeout=5_000)
-                except Exception:
-                    pass
+                pass
 
-            # Date from
-            for sel in ["input[name*='DateFrom']", "input[id*='DateFrom']",
-                        "input[placeholder*='Start Date']", "#BeginDate"]:
-                try:
-                    await page.fill(sel, date_from, timeout=3_000)
+        # POST fallback
+        await page.evaluate("""
+            fetch('/ssweb/user/disclaimer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'ajaxRequest': 'true'
+                },
+                body: 'accept=Accept'
+            });
+        """)
+        await asyncio.sleep(2)
+        log.info("Disclaimer accepted via JS POST")
+        return True
+    except Exception as exc:
+        log.warning(f"Disclaimer accept error: {exc}")
+        return False
+
+
+async def search_doc_type(page, code: str, date_from: str, date_to: str) -> list:
+    records = []
+    log.info(f"Searching {code} | {date_from} - {date_to}")
+    try:
+        await page.goto(OR_SEARCH, timeout=30_000)
+        await page.wait_for_load_state("networkidle", timeout=20_000)
+        await asyncio.sleep(2)
+
+        # Try clicking Document Type search tab
+        for sel in [
+            "a:has-text('Document Type')", "[data-val='dt']",
+            "input[value='dt']", "label:has-text('Document Type')",
+            "a:has-text('Instrument Type')", "li:has-text('Document Type') a"
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=2_000):
+                    await el.click(timeout=3_000)
+                    await asyncio.sleep(1)
+                    log.info(f"  Clicked doc type tab: {sel}")
                     break
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-            # Date to
-            for sel in ["input[name*='DateTo']", "input[id*='DateTo']",
-                        "input[placeholder*='End Date']", "#EndDate"]:
-                try:
-                    await page.fill(sel, date_to, timeout=3_000)
-                    break
-                except Exception:
-                    pass
-
-            # County / instrument type path (some portals use separate field)
-            for sel in ["input[name*='InstrumentType']", "select[name*='InstrumentType']"]:
-                try:
-                    el = page.locator(sel).first
+        # Fill doc type field
+        filled_type = False
+        for sel in [
+            "#field_DocType", "input[name*='DocType']", "input[name*='docType']",
+            "input[placeholder*='Type']", "input[placeholder*='Instrument']",
+            "select[name*='DocType']", "#DocType"
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=2_000):
                     tag = await el.evaluate("e => e.tagName")
                     if tag == "SELECT":
-                        await page.select_option(sel, value=doc_type, timeout=3_000)
+                        await page.select_option(sel, value=code, timeout=3_000)
                     else:
-                        await el.fill(doc_type, timeout=3_000)
+                        await el.triple_click(timeout=3_000)
+                        await el.fill(code, timeout=3_000)
+                        await el.press("Tab")
+                    filled_type = True
+                    log.info(f"  Filled doc type '{code}' via {sel}")
                     break
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-            # Submit
-            for sel in ["button[type='submit']", "input[type='submit']",
-                        "button:has-text('Search')", "#btnSearch"]:
-                try:
-                    await page.click(sel, timeout=5_000)
+        # Fill begin date
+        for sel in [
+            "#field_DocBeginDate", "input[name*='BeginDate']",
+            "input[name*='beginDate']", "input[placeholder*='Begin']",
+            "input[placeholder*='Start']", "#BeginDate"
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=2_000):
+                    await el.triple_click(timeout=3_000)
+                    await el.fill(date_from, timeout=3_000)
+                    await el.press("Tab")
+                    log.info(f"  Filled begin date: {date_from}")
                     break
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-            await page.wait_for_load_state("networkidle", timeout=20_000)
+        # Fill end date
+        for sel in [
+            "#field_DocEndDate", "input[name*='EndDate']",
+            "input[name*='endDate']", "input[placeholder*='End']",
+            "input[placeholder*='Thru']", "#EndDate"
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=2_000):
+                    await el.triple_click(timeout=3_000)
+                    await el.fill(date_to, timeout=3_000)
+                    await el.press("Tab")
+                    log.info(f"  Filled end date: {date_to}")
+                    break
+            except Exception:
+                pass
 
-            # ── Paginate through results ──────────────────────────────────
-            page_num = 0
-            while True:
-                page_num += 1
-                await asyncio.sleep(0.8)
-                html = await page.content()
-                batch = _parse_clerk_results(html, doc_type)
-                records.extend(batch)
-                log.info(f"  {doc_type} page {page_num}: {len(batch)} records")
+        await asyncio.sleep(1)
 
-                # Try next page
-                next_btn = page.locator(
-                    "a:has-text('Next'), button:has-text('Next'), "
-                    "a[rel='next'], .pagination-next, #nextPage"
-                ).first
+        # Click Search button
+        for sel in [
+            "#searchButton", "button:has-text('Search')",
+            "a:has-text('Search')", "input[value='Search']",
+            "[data-role='button']:has-text('Search')",
+            "button[type='submit']"
+        ]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=2_000):
+                    await el.click(timeout=5_000)
+                    log.info(f"  Clicked search via {sel}")
+                    break
+            except Exception:
+                pass
+
+        # Wait for results
+        await asyncio.sleep(4)
+        try:
+            await page.wait_for_load_state("networkidle", timeout=25_000)
+        except Exception:
+            pass
+
+        # Paginate through results
+        page_num = 0
+        while True:
+            page_num += 1
+            html = await page.content()
+            batch = _parse_results(html, code)
+            records.extend(batch)
+            log.info(f"  {code} page {page_num}: {len(batch)} records")
+
+            # Try next page
+            next_found = False
+            for sel in [
+                "a:has-text('Next')", "button:has-text('Next')",
+                "[aria-label='Next page']", ".next-page",
+                "a[title='Next']"
+            ]:
                 try:
-                    visible = await next_btn.is_visible(timeout=2_000)
-                    enabled = not await next_btn.is_disabled(timeout=2_000)
-                    if visible and enabled:
-                        await next_btn.click(timeout=5_000)
+                    btn = page.locator(sel).first
+                    vis = await btn.is_visible(timeout=1_500)
+                    cls = await btn.get_attribute("class") or ""
+                    disabled = await btn.get_attribute("disabled")
+                    if vis and "disabled" not in cls.lower() and disabled is None:
+                        await btn.click(timeout=5_000)
                         await page.wait_for_load_state("networkidle", timeout=15_000)
-                    else:
+                        await asyncio.sleep(1)
+                        next_found = True
                         break
                 except Exception:
-                    break
+                    pass
 
-        except PWTimeout:
-            log.warning(f"Timeout on {doc_type}")
-        except Exception as exc:
-            log.error(f"Playwright error for {doc_type}: {exc}\n{traceback.format_exc()}")
-        finally:
-            await browser.close()
+            if not next_found or page_num > 50:
+                break
+
+    except Exception as exc:
+        log.error(f"Error searching {code}: {exc}\n{traceback.format_exc()}")
 
     return records
 
 
-def _parse_clerk_results(html: str, doc_type: str) -> list[dict]:
-    """Parse the search results table from the clerk portal."""
+def _parse_results(html: str, doc_type: str) -> list:
     soup = BeautifulSoup(html, "lxml")
     rows = []
 
-    # Find the main results table
-    tables = soup.find_all("table")
-    for tbl in tables:
+    for tbl in soup.find_all("table"):
         headers = [th.get_text(strip=True).lower() for th in tbl.find_all("th")]
         if not headers:
             continue
-        # Must have at least doc/instrument number or date columns
         if not any(k in " ".join(headers) for k in
-                   ["doc", "instrument", "book", "date", "filed", "grantor"]):
+                   ["instrument", "doc", "book", "date", "filed", "grantor", "type"]):
             continue
 
-        header_map = {}
+        hmap = {}
         for i, h in enumerate(headers):
-            if any(k in h for k in ["instrument", "doc", "book", "number"]):
-                header_map.setdefault("doc_num", i)
-            elif "type" in h:
-                header_map.setdefault("doc_type", i)
-            elif any(k in h for k in ["filed", "record", "date"]):
-                header_map.setdefault("filed", i)
-            elif "grantor" in h or "owner" in h:
-                header_map.setdefault("grantor", i)
+            if any(k in h for k in ["instrument", "doc num", "book", "number", "doc #"]):
+                hmap.setdefault("doc_num", i)
+            elif "type" in h and "doc" in h:
+                hmap.setdefault("doc_type", i)
+            elif any(k in h for k in ["record", "filed", "date"]):
+                hmap.setdefault("filed", i)
+            elif "grantor" in h:
+                hmap.setdefault("grantor", i)
             elif "grantee" in h:
-                header_map.setdefault("grantee", i)
-            elif any(k in h for k in ["amount", "consider", "value"]):
-                header_map.setdefault("amount", i)
-            elif any(k in h for k in ["legal", "description"]):
-                header_map.setdefault("legal", i)
+                hmap.setdefault("grantee", i)
+            elif any(k in h for k in ["amount", "consider"]):
+                hmap.setdefault("amount", i)
+            elif "legal" in h:
+                hmap.setdefault("legal", i)
 
         for tr in tbl.find_all("tr")[1:]:
             cells = tr.find_all(["td", "th"])
@@ -394,25 +413,24 @@ def _parse_clerk_results(html: str, doc_type: str) -> list[dict]:
                 continue
             texts = [c.get_text(strip=True) for c in cells]
 
-            def get(key, default=""):
-                idx = header_map.get(key)
-                return texts[idx] if idx is not None and idx < len(texts) else default
+            def get(key):
+                idx = hmap.get(key)
+                return texts[idx] if idx is not None and idx < len(texts) else ""
 
-            # Try to find direct link in row
             link = ""
             for a in tr.find_all("a", href=True):
                 href = a["href"]
-                if any(k in href.lower() for k in
-                       ["document", "instrument", "detail", "view", "record"]):
-                    link = href if href.startswith("http") else f"{CLERK_BASE}{href}"
+                if any(k in href.lower() for k in ["doc", "instrument", "detail", "view"]):
+                    link = href if href.startswith("http") else \
+                           f"https://selfservice.or.occompt.com{href}"
                     break
 
-            raw_doc_num = get("doc_num") or (texts[0] if texts else "")
-            if not raw_doc_num:
+            num = get("doc_num") or (texts[0] if texts else "")
+            if not num or num.lower() in ("", "instrument", "doc #", "#"):
                 continue
 
             rows.append({
-                "doc_num":   raw_doc_num,
+                "doc_num":   num,
                 "doc_type":  get("doc_type") or doc_type,
                 "filed":     get("filed"),
                 "grantor":   get("grantor"),
@@ -421,370 +439,201 @@ def _parse_clerk_results(html: str, doc_type: str) -> list[dict]:
                 "legal":     get("legal"),
                 "clerk_url": link,
             })
-
     return rows
 
+# ── SCORE ─────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ALTERNATIVE: requests-based fallback for clerk (POST search)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def fetch_clerk_records_requests(doc_type: str, date_from: str, date_to: str) -> list[dict]:
-    """
-    Fallback: direct POST to clerk search if Playwright fails.
-    Handles __VIEWSTATE / __doPostBack pattern.
-    """
-    records = []
-
-    def _get_form_state():
-        r = SESSION.get(CLERK_SEARCH, timeout=20)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "lxml")
-        vs  = soup.find("input", {"name": "__VIEWSTATE"})
-        vsg = soup.find("input", {"name": "__VIEWSTATEGENERATOR"})
-        ev  = soup.find("input", {"name": "__EVENTVALIDATION"})
-        return {
-            "__VIEWSTATE":          vs["value"]  if vs  else "",
-            "__VIEWSTATEGENERATOR": vsg["value"] if vsg else "",
-            "__EVENTVALIDATION":    ev["value"]  if ev  else "",
-            "cookies":              dict(r.cookies),
-        }
-
-    try:
-        state = retry(_get_form_state)
-        if not state:
-            return []
-
-        payload = {
-            "__VIEWSTATE":          state["__VIEWSTATE"],
-            "__VIEWSTATEGENERATOR": state["__VIEWSTATEGENERATOR"],
-            "__EVENTVALIDATION":    state["__EVENTVALIDATION"],
-            "InstrumentType":       doc_type,
-            "DocType":              doc_type,
-            "DateFrom":             date_from,
-            "DateTo":               date_to,
-            "BeginDate":            date_from,
-            "EndDate":              date_to,
-            "btnSearch":            "Search",
-        }
-
-        page_num = 0
-        while True:
-            page_num += 1
-            r = SESSION.post(CLERK_SEARCH, data=payload,
-                             cookies=state["cookies"], timeout=30)
-            r.raise_for_status()
-            batch = _parse_clerk_results(r.text, doc_type)
-            records.extend(batch)
-            log.info(f"  [requests] {doc_type} page {page_num}: {len(batch)} records")
-
-            # Check for next page __doPostBack
-            soup = BeautifulSoup(r.text, "lxml")
-            next_link = soup.find("a", string=re.compile(r"Next|>", re.I))
-            if not next_link:
-                break
-            href = next_link.get("href", "")
-            dpb = re.search(r"__doPostBack\('([^']+)','([^']*)'\)", href)
-            if not dpb:
-                break
-            payload.update({
-                "__EVENTTARGET":   dpb.group(1),
-                "__EVENTARGUMENT": dpb.group(2),
-                "btnSearch":       "",
-            })
-
-    except Exception as exc:
-        log.error(f"requests fallback error for {doc_type}: {exc}")
-
-    return records
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SCORING
-# ─────────────────────────────────────────────────────────────────────────────
-
-def compute_flags_score(rec: dict, cutoff_date: str) -> tuple[list[str], int]:
-    flags = []
-    score = 30  # base
-
+def compute_score(rec: dict) -> tuple:
+    flags, score = [], 30
     dt    = rec.get("doc_type", "")
-    cat   = rec.get("cat", "")
     owner = rec.get("owner", "").upper()
     amt   = rec.get("amount_raw")
     filed = rec.get("filed", "")
 
-    # Category flags
-    if dt in ("LP",):
-        flags.append("Lis pendens")
-        score += 10
-    if dt in ("LP", "NOFC"):
-        flags.append("Pre-foreclosure")
-        score += 10
-    if dt in ("JUD", "CCJ", "DRJUD"):
-        flags.append("Judgment lien")
-        score += 10
-    if dt in ("TAXDEED", "LNCORPTX", "LNIRS", "LNFED"):
-        flags.append("Tax lien")
-        score += 10
-    if dt == "LNMECH":
-        flags.append("Mechanic lien")
-        score += 10
-    if dt in ("PRO",):
-        flags.append("Probate / estate")
-        score += 10
-    if "LLC" in owner or " INC" in owner or " CORP" in owner or " LTD" in owner:
-        flags.append("LLC / corp owner")
-        score += 10
-
-    # LP + FC combo bonus
     if dt == "LP":
-        score += 20
-
-    # Amount bonuses
+        flags.append("Lis pendens"); score += 30
+    if dt in ("LP", "NOFC"):
+        flags.append("Pre-foreclosure"); score += 10
+    if dt in ("JUD", "CCJ", "DRJUD"):
+        flags.append("Judgment lien"); score += 10
+    if dt in ("TAXDEED", "LNCORPTX", "LNIRS", "LNFED"):
+        flags.append("Tax lien"); score += 10
+    if dt == "LNMECH":
+        flags.append("Mechanic lien"); score += 10
+    if dt == "PRO":
+        flags.append("Probate / estate"); score += 10
+    if any(k in owner for k in ["LLC","INC","CORP","LTD","TRUST"]):
+        flags.append("LLC / corp owner"); score += 10
     if amt and amt > 100_000:
-        score += 15
-        flags.append("High debt (>$100k)")
+        score += 15; flags.append("High debt (>$100k)")
     elif amt and amt > 50_000:
-        score += 10
-        flags.append("Significant debt (>$50k)")
-
-    # New this week
+        score += 10; flags.append("Significant debt (>$50k)")
     try:
-        filed_dt = datetime.strptime(filed[:10], "%Y-%m-%d")
-        if (datetime.today() - filed_dt).days <= 7:
-            score += 5
-            flags.append("New this week")
+        if (datetime.today() - datetime.strptime(filed[:10], "%Y-%m-%d")).days <= 7:
+            score += 5; flags.append("New this week")
     except Exception:
         pass
-
-    # Has address
     if rec.get("prop_address"):
-        score += 5
-        flags.append("Has address")
-
+        score += 5; flags.append("Has address")
     return list(dict.fromkeys(flags)), min(score, 100)
 
+# ── ENRICH ────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ENRICH RECORDS
-# ─────────────────────────────────────────────────────────────────────────────
-
-def enrich(raw: dict, doc_type: str, parcel: ParcelLookup, cutoff_date: str) -> dict:
-    """Merge raw clerk record with parcel data and compute score."""
-    code  = doc_type
-    label, cat_label = LEAD_TYPES.get(code, (code, "Other"))
-
+def enrich(raw: dict, code: str, parcel: ParcelLookup) -> dict:
+    _, cat_label = LEAD_TYPES.get(code, (code, "Other"))
     owner_raw  = safe_strip(raw.get("grantor", ""))
-    grantee    = safe_strip(raw.get("grantee", ""))
     amount_str = safe_strip(raw.get("amount", ""))
     amount_raw = parse_amount(amount_str)
 
-    # Normalize filed date
     filed_raw = safe_strip(raw.get("filed", ""))
     filed_norm = ""
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%Y/%m/%d"):
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"):
         try:
-            filed_norm = datetime.strptime(filed_raw, fmt).strftime("%Y-%m-%d")
-            break
+            filed_norm = datetime.strptime(filed_raw, fmt).strftime("%Y-%m-%d"); break
         except Exception:
             pass
     if not filed_norm:
         filed_norm = filed_raw
 
-    # Parcel lookup
-    parcel_hit = parcel.lookup(owner_raw) if owner_raw else None
-
-    prop_address = ""
-    prop_city    = "Orange County"
-    prop_state   = "FL"
-    prop_zip     = ""
-    mail_address = ""
-    mail_city    = ""
-    mail_state   = ""
-    mail_zip     = ""
-
-    if parcel_hit:
-        prop_address = parcel_hit.get("site_addr", "")
-        prop_city    = parcel_hit.get("site_city", "") or "Orange County"
-        prop_zip     = parcel_hit.get("site_zip", "")
-        mail_address = parcel_hit.get("mail_addr", "")
-        mail_city    = parcel_hit.get("mail_city", "")
-        mail_state   = parcel_hit.get("mail_state", "")
-        mail_zip     = parcel_hit.get("mail_zip", "")
-
+    ph = parcel.lookup(owner_raw) if owner_raw else None
     rec = {
         "doc_num":      safe_strip(raw.get("doc_num", "")),
         "doc_type":     code,
-        "doc_type_raw": safe_strip(raw.get("doc_type", "")),
         "filed":        filed_norm,
         "cat":          code,
         "cat_label":    cat_label,
         "owner":        owner_raw,
-        "grantee":      grantee,
+        "grantee":      safe_strip(raw.get("grantee", "")),
         "amount":       amount_str,
         "amount_raw":   amount_raw,
         "legal":        safe_strip(raw.get("legal", "")),
-        "prop_address": prop_address,
-        "prop_city":    prop_city,
-        "prop_state":   prop_state,
-        "prop_zip":     prop_zip,
-        "mail_address": mail_address,
-        "mail_city":    mail_city,
-        "mail_state":   mail_state,
-        "mail_zip":     mail_zip,
-        "clerk_url":    safe_strip(raw.get("clerk_url", "")),
-        "flags":        [],
-        "score":        0,
+        "prop_address": ph.get("site_addr","") if ph else "",
+        "prop_city":    ph.get("site_city","") if ph else "Orange County",
+        "prop_state":   "FL",
+        "prop_zip":     ph.get("site_zip","")  if ph else "",
+        "mail_address": ph.get("mail_addr","") if ph else "",
+        "mail_city":    ph.get("mail_city","") if ph else "",
+        "mail_state":   ph.get("mail_state","") if ph else "",
+        "mail_zip":     ph.get("mail_zip","")  if ph else "",
+        "clerk_url":    safe_strip(raw.get("clerk_url","")),
+        "flags": [], "score": 0,
     }
-
-    flags, score = compute_flags_score(rec, cutoff_date)
-    rec["flags"] = flags
-    rec["score"] = score
+    rec["flags"], rec["score"] = compute_score(rec)
     return rec
 
+# ── CSV ───────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────────────────────────────────────
-# GHL CSV EXPORT
-# ─────────────────────────────────────────────────────────────────────────────
-
-def export_ghl_csv(records: list[dict], out_path: Path):
-    fieldnames = [
-        "First Name", "Last Name",
-        "Mailing Address", "Mailing City", "Mailing State", "Mailing Zip",
-        "Property Address", "Property City", "Property State", "Property Zip",
-        "Lead Type", "Document Type", "Date Filed",
-        "Document Number", "Amount/Debt Owed",
-        "Seller Score", "Motivated Seller Flags",
-        "Source", "Public Records URL",
-    ]
-
-    def split_name(full: str):
-        parts = full.strip().split()
-        if len(parts) >= 2:
-            return parts[0].title(), " ".join(parts[1:]).title()
-        return full.title(), ""
-
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+def export_csv(records: list, out_path: Path):
+    cols = ["First Name","Last Name","Mailing Address","Mailing City","Mailing State",
+            "Mailing Zip","Property Address","Property City","Property State","Property Zip",
+            "Lead Type","Document Type","Date Filed","Document Number","Amount/Debt Owed",
+            "Seller Score","Motivated Seller Flags","Source","Public Records URL"]
+    with open(out_path,"w",newline="",encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
         for r in records:
-            fn, ln = split_name(r.get("owner", ""))
-            writer.writerow({
-                "First Name":            fn,
-                "Last Name":             ln,
-                "Mailing Address":       r.get("mail_address", ""),
-                "Mailing City":          r.get("mail_city", ""),
-                "Mailing State":         r.get("mail_state", ""),
-                "Mailing Zip":           r.get("mail_zip", ""),
-                "Property Address":      r.get("prop_address", ""),
-                "Property City":         r.get("prop_city", ""),
-                "Property State":        r.get("prop_state", ""),
-                "Property Zip":          r.get("prop_zip", ""),
-                "Lead Type":             r.get("cat_label", ""),
-                "Document Type":         r.get("doc_type", ""),
-                "Date Filed":            r.get("filed", ""),
-                "Document Number":       r.get("doc_num", ""),
-                "Amount/Debt Owed":      r.get("amount", ""),
-                "Seller Score":          r.get("score", 0),
-                "Motivated Seller Flags": " | ".join(r.get("flags", [])),
-                "Source":                "Orange County Clerk – myorangeclerk.com",
-                "Public Records URL":    r.get("clerk_url", ""),
+            parts = (r.get("owner","")).split()
+            fn = parts[0].title() if parts else ""
+            ln = " ".join(parts[1:]).title() if len(parts)>1 else ""
+            w.writerow({
+                "First Name":fn,"Last Name":ln,
+                "Mailing Address":r.get("mail_address",""),
+                "Mailing City":r.get("mail_city",""),
+                "Mailing State":r.get("mail_state",""),
+                "Mailing Zip":r.get("mail_zip",""),
+                "Property Address":r.get("prop_address",""),
+                "Property City":r.get("prop_city",""),
+                "Property State":r.get("prop_state","FL"),
+                "Property Zip":r.get("prop_zip",""),
+                "Lead Type":r.get("cat_label",""),
+                "Document Type":r.get("doc_type",""),
+                "Date Filed":r.get("filed",""),
+                "Document Number":r.get("doc_num",""),
+                "Amount/Debt Owed":r.get("amount",""),
+                "Seller Score":r.get("score",0),
+                "Motivated Seller Flags":" | ".join(r.get("flags",[])),
+                "Source":"Orange County Comptroller OR – occompt.com",
+                "Public Records URL":r.get("clerk_url",""),
             })
-    log.info(f"GHL CSV exported: {out_path} ({len(records)} rows)")
+    log.info(f"CSV: {out_path} ({len(records)} rows)")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────────────────────────────────────
+# ── MAIN ──────────────────────────────────────────────────────────────────────
 
 async def main():
     now       = datetime.today()
     date_to   = now.strftime("%m/%d/%Y")
     date_from = (now - timedelta(days=LOOKBACK_DAYS)).strftime("%m/%d/%Y")
-    cutoff    = (now - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    log.info(f"Run: {date_from} → {date_to}")
 
-    log.info(f"Starting scrape: {date_from} → {date_to}")
-
-    # 1. Load parcel data
     parcel = ParcelLookup()
     parcel.download_and_load()
 
-    # 2. Fetch clerk records for each doc type
-    all_records: list[dict] = []
+    all_records = []
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            headless=True,
+            args=["--no-sandbox","--disable-dev-shm-usage","--disable-blink-features=AutomationControlled"]
+        )
+        ctx = await browser.new_context(
+            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/120 Safari/537.36",
+            viewport={"width":1280,"height":800},
+        )
+        page = await ctx.new_page()
+        await accept_disclaimer(page)
 
-    for code in LEAD_TYPES:
-        raw_list = []
-
-        # Try Playwright first
-        try:
-            raw_list = await asyncio.wait_for(
-                fetch_clerk_records(code, date_from, date_to),
-                timeout=90
-            )
-        except Exception as exc:
-            log.warning(f"Playwright failed for {code}: {exc}; trying requests fallback")
-
-        # Fallback to requests if nothing came back
-        if not raw_list:
+        for code in LEAD_TYPES:
             try:
-                raw_list = retry(
-                    lambda: fetch_clerk_records_requests(code, date_from, date_to)
-                ) or []
+                raws = await asyncio.wait_for(
+                    search_doc_type(page, code, date_from, date_to),
+                    timeout=120
+                )
+            except asyncio.TimeoutError:
+                log.warning(f"Timeout: {code}")
+                raws = []
             except Exception as exc:
-                log.error(f"requests fallback also failed for {code}: {exc}")
+                log.error(f"{code}: {exc}")
+                raws = []
 
-        log.info(f"{code}: {len(raw_list)} raw records found")
+            log.info(f"{code}: {len(raws)} raw records")
+            for raw in raws:
+                try:
+                    all_records.append(enrich(raw, code, parcel))
+                except Exception as exc:
+                    log.warning(f"Enrich {code}: {exc}")
 
-        for raw in raw_list:
-            try:
-                enriched = enrich(raw, code, parcel, cutoff)
-                all_records.append(enriched)
-            except Exception as exc:
-                log.warning(f"Enrich failed for {code} record: {exc}")
+        await browser.close()
 
-    # Deduplicate by doc_num
-    seen = set()
-    deduped = []
+    # Dedupe + sort
+    seen, deduped = set(), []
     for r in all_records:
-        key = r["doc_num"]
-        if key and key not in seen:
-            seen.add(key)
-            deduped.append(r)
-        elif not key:
+        k = r["doc_num"]
+        if k and k not in seen:
+            seen.add(k); deduped.append(r)
+        elif not k:
             deduped.append(r)
 
     deduped.sort(key=lambda x: x["score"], reverse=True)
+    for r in deduped:
+        r.pop("amount_raw", None)
 
     with_addr = sum(1 for r in deduped if r.get("prop_address"))
-
     payload = {
         "fetched_at":   now.isoformat(),
-        "source":       "Orange County Clerk – myorangeclerk.com",
+        "source":       "Orange County Comptroller Official Records – occompt.com",
         "date_range":   {"from": date_from, "to": date_to},
         "total":        len(deduped),
         "with_address": with_addr,
         "records":      deduped,
     }
 
-    # Serialize (remove amount_raw internal field from output)
-    for r in payload["records"]:
-        r.pop("amount_raw", None)
-        r.pop("doc_type_raw", None)
-
-    # 3. Write JSON outputs
-    for out_path in [DATA_DIR / "records.json", DASHBOARD_DIR / "records.json"]:
-        with open(out_path, "w", encoding="utf-8") as f:
+    for p in [DATA_DIR/"records.json", DASHBOARD_DIR/"records.json"]:
+        with open(p,"w",encoding="utf-8") as f:
             json.dump(payload, f, indent=2, default=str)
-        log.info(f"Wrote {out_path} ({len(deduped)} records)")
+        log.info(f"Wrote {p}")
 
-    # 4. GHL CSV
-    export_ghl_csv(deduped, DATA_DIR / "leads_export.csv")
-
-    log.info(
-        f"✅ Done. Total: {len(deduped)} | With address: {with_addr} | "
-        f"Top score: {deduped[0]['score'] if deduped else 'N/A'}"
-    )
-
+    export_csv(deduped, DATA_DIR/"leads_export.csv")
+    log.info(f"Done. {len(deduped)} records | {with_addr} with address")
 
 if __name__ == "__main__":
     asyncio.run(main())

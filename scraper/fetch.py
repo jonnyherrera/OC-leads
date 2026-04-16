@@ -52,11 +52,10 @@ DASHBOARD_DIR.mkdir(exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
-
 SESSION = requests.Session()
-SESSION.headers.update({"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/120"})
+SESSION.headers.update({"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) Chrome/120"})
 
-def safe_strip(v) -> str: return str(v).strip() if v else ""
+def safe_strip(v): return str(v).strip() if v else ""
 def parse_amount(raw):
     try: return float(re.sub(r"[^\d.]","",raw)) or None
     except: return None
@@ -72,62 +71,59 @@ class ParcelLookup:
     def __init__(self): self.by_owner = {}
     def _norm(self,n): return re.sub(r"\s+"," ",n.upper().strip())
     def _variants(self,raw):
-        n = self._norm(raw); v = [n]
+        n=self._norm(raw); v=[n]
         if "," in n:
-            p = [x.strip() for x in n.split(",",1)]
+            p=[x.strip() for x in n.split(",",1)]
             if len(p)==2: v.append(f"{p[1]} {p[0]}")
         else:
-            p = n.split()
+            p=n.split()
             if len(p)>=2: v.append(f"{p[-1]}, {' '.join(p[:-1])}")
         return list(dict.fromkeys(v))
-    def _load_dbf(self, path):
+    def _load_dbf(self,path):
         if not HAS_DBF: return
-        col_map = {"owner":["OWNER","OWN1"],"site_addr":["SITE_ADDR","SITEADDR"],
-                   "site_city":["SITE_CITY","SITECITY"],"site_zip":["SITE_ZIP","SITEZIP"],
-                   "mail_addr":["ADDR_1","MAILADR1"],"mail_city":["CITY","MAILCITY"],
-                   "mail_state":["STATE","MAILSTATE"],"mail_zip":["ZIP","MAILZIP"]}
+        col_map={"owner":["OWNER","OWN1"],"site_addr":["SITE_ADDR","SITEADDR"],
+                 "site_city":["SITE_CITY","SITECITY"],"site_zip":["SITE_ZIP","SITEZIP"],
+                 "mail_addr":["ADDR_1","MAILADR1"],"mail_city":["CITY","MAILCITY"],
+                 "mail_state":["STATE","MAILSTATE"],"mail_zip":["ZIP","MAILZIP"]}
         try:
-            tbl = DBF(str(path), ignore_missing_memofile=True)
-            fields = [f.name.upper() for f in tbl.fields]
+            tbl=DBF(str(path),ignore_missing_memofile=True)
+            fields=[f.name.upper() for f in tbl.fields]
             def fc(keys):
                 for k in keys:
                     if k in fields: return k
-            cols = {k:fc(v) for k,v in col_map.items()}
-            cnt = 0
+            cols={k:fc(v) for k,v in col_map.items()}; cnt=0
             for rec in tbl:
                 try:
-                    o = safe_strip(rec.get(cols["owner"]) if cols["owner"] else "")
+                    o=safe_strip(rec.get(cols["owner"]) if cols["owner"] else "")
                     if not o: continue
-                    p = {k:safe_strip(rec.get(cols[k]) if cols[k] else "") for k in col_map}
+                    p={k:safe_strip(rec.get(cols[k]) if cols[k] else "") for k in col_map}
                     for v in self._variants(o): self.by_owner.setdefault(v,p)
-                    cnt += 1
+                    cnt+=1
                 except: pass
             log.info(f"Loaded {cnt:,} parcels")
         except Exception as e: log.error(f"DBF: {e}")
     def download_and_load(self):
-        zp = DATA_DIR / "parcel_data.zip"
+        zp=DATA_DIR/"parcel_data.zip"
         def dl():
-            r = SESSION.get(OCPA_BULK_URL, timeout=120, stream=True)
-            r.raise_for_status()
+            r=SESSION.get(OCPA_BULK_URL,timeout=120,stream=True); r.raise_for_status()
             with open(zp,"wb") as f:
                 for ch in r.iter_content(65536): f.write(ch)
-            mb = zp.stat().st_size/1_048_576
-            if mb < 0.5: raise ValueError(f"too small: {mb:.1f}MB")
+            mb=zp.stat().st_size/1_048_576
+            if mb<0.5: raise ValueError(f"too small: {mb:.1f}MB")
             log.info(f"Parcel ZIP: {mb:.1f}MB")
-        if zp.exists() and (time.time()-zp.stat().st_mtime)<72000:
-            log.info("Cached parcel ZIP")
+        if zp.exists() and (time.time()-zp.stat().st_mtime)<72000: log.info("Cached parcel ZIP")
         else:
             retry(dl,3,5)
             if not zp.exists(): return
         try:
             with zipfile.ZipFile(zp) as z:
-                dbfs = [n for n in z.namelist() if n.upper().endswith(".DBF")]
+                dbfs=[n for n in z.namelist() if n.upper().endswith(".DBF")]
                 if dbfs:
-                    dp = DATA_DIR / Path(dbfs[0]).name
+                    dp=DATA_DIR/Path(dbfs[0]).name
                     with z.open(dbfs[0]) as s, open(dp,"wb") as d: d.write(s.read())
                     self._load_dbf(dp)
         except Exception as e: log.error(f"ZIP: {e}")
-    def lookup(self, owner):
+    def lookup(self,owner):
         for v in self._variants(owner):
             if v in self.by_owner: return self.by_owner[v]
 
@@ -137,165 +133,170 @@ async def ss(page, name):
     try: await page.screenshot(path=str(DATA_DIR/f"debug_{name}.png"), full_page=True)
     except: pass
 
-async def wait_for_any(page, selectors, timeout=10000):
-    """Wait until any of the selectors becomes visible. Returns the first found."""
-    deadline = asyncio.get_event_loop().time() + timeout/1000
-    while asyncio.get_event_loop().time() < deadline:
-        for sel in selectors:
-            try:
-                el = page.locator(sel).first
-                if await el.is_visible(timeout=500):
-                    return sel
-            except: pass
+async def dismiss_popups(page):
+    """Dismiss any session timeout or other popups blocking the form."""
+    for sel in [
+        "button:has-text('Yes - Continue')",
+        "button:has-text('Continue')",
+        "#session-continue",
+        "button:has-text('OK')",
+        "button:has-text('Close')",
+    ]:
+        try:
+            el = page.locator(sel).first
+            if await el.is_visible(timeout=1000):
+                await el.click(timeout=2000)
+                log.info(f"  Dismissed popup: {sel}")
+                await asyncio.sleep(1)
+        except: pass
+
+async def ensure_fresh_session(page):
+    """
+    Accept disclaimer fresh to get a valid session.
+    Called before EVERY doc type search to avoid session expiry.
+    """
+    try:
+        # POST the disclaimer acceptance
+        status = await page.evaluate("""
+            async () => {
+                try {
+                    const r = await fetch('/ssweb/user/disclaimer', {
+                        method:'POST',
+                        headers:{
+                            'Content-Type':'application/x-www-form-urlencoded',
+                            'ajaxRequest':'true'
+                        },
+                        body:'accept=Accept'
+                    });
+                    return r.status;
+                } catch(e) { return -1; }
+            }
+        """)
+        log.info(f"  Session refresh: {status}")
         await asyncio.sleep(0.5)
-    return None
+    except Exception as e:
+        log.warning(f"  Session refresh error: {e}")
 
-async def try_fill(page, selectors, value):
-    for sel in selectors:
-        try:
-            el = page.locator(sel).first
-            if await el.is_visible(timeout=2000):
-                tag = await el.evaluate("e=>e.tagName")
-                if tag == "SELECT":
-                    await page.select_option(sel, value=value, timeout=3000)
-                else:
-                    await el.triple_click(timeout=2000)
-                    await el.type(value, delay=50)
-                log.info(f"  Filled '{value}' -> {sel}")
-                return True
-        except: pass
+async def wait_for_form(page, timeout=15000):
+    """Wait until the search form inputs are visible on the page."""
+    deadline = time.time() + timeout/1000
+    while time.time() < deadline:
+        count = await page.evaluate("""
+            () => document.querySelectorAll('input[type="text"], input[type="search"], select').length
+        """)
+        if count > 0:
+            log.info(f"  Form ready: {count} input fields found")
+            return True
+        await asyncio.sleep(0.8)
+    log.warning("  Form never appeared")
     return False
 
-async def try_click(page, selectors):
-    for sel in selectors:
-        try:
-            el = page.locator(sel).first
-            if await el.is_visible(timeout=2000):
-                await el.click(timeout=3000)
-                log.info(f"  Clicked: {sel}")
-                return True
-        except: pass
-    return False
-
-# ── ACCEPT DISCLAIMER ─────────────────────────────────────────────────────────
-
-async def accept_disclaimer(page):
-    await page.goto(OR_DISCLAIMER, timeout=30000, wait_until="domcontentloaded")
-    await asyncio.sleep(3)
-    await ss(page, "01_disclaimer")
-
-    # Click any accept button
-    clicked = await try_click(page, [
-        "input[value='Accept']", "input[value*='ccept']",
-        "button:has-text('Accept')", "a:has-text('Accept')",
-        "input[type='submit']", "button[type='submit']",
-    ])
-    if clicked:
-        await asyncio.sleep(2)
-        log.info("Disclaimer accepted via click")
-        return
-
-    # JS POST fallback
-    status = await page.evaluate("""
-        async () => {
-            const r = await fetch('/ssweb/user/disclaimer', {
-                method:'POST',
-                headers:{'Content-Type':'application/x-www-form-urlencoded','ajaxRequest':'true'},
-                body:'accept=Accept'
-            });
-            return r.status;
-        }
-    """)
-    log.info(f"Disclaimer JS POST: {status}")
-    await asyncio.sleep(1)
-
-# ── SEARCH ONE DOC TYPE ───────────────────────────────────────────────────────
+# ── SEARCH ────────────────────────────────────────────────────────────────────
 
 async def search_doc_type(page, code, date_from, date_to):
     records = []
     log.info(f"Searching {code} | {date_from} - {date_to}")
-
     try:
+        # Refresh session cookie before each search
+        await ensure_fresh_session(page)
+
+        # Navigate to search
         await page.goto(OR_SEARCH, timeout=30000, wait_until="domcontentloaded")
-
-        # Wait for jQuery Mobile to finish rendering (key fix)
-        # jQM adds data-role="page" and then initializes — wait for any input to appear
-        found_sel = await wait_for_any(page, [
-            "input", "select", "a[data-role='button']",
-            "[data-role='listview']", ".ui-content",
-            "#searchButton", "form"
-        ], timeout=12000)
-        log.info(f"  Page ready signal: {found_sel}")
         await asyncio.sleep(2)
-        await ss(page, f"02_{code}_loaded")
 
-        # Dump full page HTML for first run to see what we're working with
+        # Dismiss any blocking popups
+        await dismiss_popups(page)
+
+        # Wait for actual form fields
+        form_ready = await wait_for_form(page, timeout=15000)
+
+        # Save source for first doc type
         if code == "LP":
             html = await page.content()
-            with open(DATA_DIR/"debug_page_source.html","w") as f:
-                f.write(html)
-            log.info("  Saved full page source to debug_page_source.html")
+            with open(DATA_DIR/"debug_page_source.html","w") as f: f.write(html)
+            await ss(page, f"02_{code}_loaded")
 
-        # Log ALL inputs including hidden ones
-        all_inputs = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('input,select,textarea,a,button'))
-                .map(e => ({
-                    tag:e.tagName, id:e.id||'', name:e.name||'',
-                    type:e.getAttribute('type')||'',
-                    placeholder:e.placeholder||'',
-                    text:(e.textContent||'').trim().substring(0,40),
-                    href:e.href||'',
-                    dataRole:e.getAttribute('data-role')||'',
-                    dataVal:e.getAttribute('data-val')||'',
-                    visible: e.offsetWidth > 0 && e.offsetHeight > 0,
-                    class:(e.className||'').substring(0,60)
-                }))
+        if not form_ready:
+            log.warning(f"  No form for {code}, skipping")
+            return records
+
+        # Dump visible inputs
+        inputs = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('input,select'))
+                .filter(e => e.offsetWidth > 0 || e.type === 'hidden')
+                .map(e => ({id:e.id, name:e.name, type:e.type,
+                            placeholder:e.placeholder, value:e.value}))
         """)
-        log.info(f"  All elements ({len(all_inputs)}): {json.dumps(all_inputs[:30])}")
+        log.info(f"  Inputs for {code}: {json.dumps(inputs)}")
 
-        # Try to click "Document Type" tab
-        await try_click(page, [
-            "a[data-val='dt']", "li[data-val='dt'] a",
-            "a:has-text('Document Type')", "a:has-text('Instrument')",
-            "[href*='searchType=dt']", "a:has-text('Type Search')",
-        ])
-        await asyncio.sleep(2)
+        # Click Document Type tab if present
+        for sel in ["a[data-val='dt']","a:has-text('Document Type')",
+                    "a:has-text('Instrument Type')","li:has-text('Document Type') a"]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=1500):
+                    await el.click(timeout=2000)
+                    await asyncio.sleep(1.5)
+                    log.info(f"  Tab: {sel}")
+                    break
+            except: pass
 
-        # Fill fields
-        await try_fill(page, [
-            "#field_DocType","input[name='field_DocType']",
-            "input[name*='ocType']","input[id*='ocType']",
-            "input[placeholder*='Type']","select[name*='ocType']"
-        ], code)
+        # Re-check inputs after tab click
+        inputs = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('input,select'))
+                .map(e => ({id:e.id, name:e.name, type:e.type, placeholder:e.placeholder}))
+        """)
+        log.info(f"  Inputs after tab: {json.dumps(inputs)}")
 
-        await try_fill(page, [
-            "#field_DocBeginDate","input[name='field_DocBeginDate']",
-            "input[name*='BeginDate']","input[placeholder*='Begin']",
-            "input[placeholder*='Start']","input[placeholder*='From']"
-        ], date_from)
+        # Fill by whatever fields exist
+        filled = False
+        for inp in inputs:
+            iid = inp.get("id","")
+            nm  = inp.get("name","")
+            ph  = inp.get("placeholder","").lower()
+            tp  = inp.get("type","")
 
-        await try_fill(page, [
-            "#field_DocEndDate","input[name='field_DocEndDate']",
-            "input[name*='EndDate']","input[placeholder*='End']",
-            "input[placeholder*='Thru']","input[placeholder*='To']"
-        ], date_to)
+            if tp in ("hidden","submit","button","checkbox","radio"): continue
+
+            sel = f"#{iid}" if iid else f"[name='{nm}']" if nm else None
+            if not sel: continue
+
+            if any(k in iid.lower()+nm.lower()+ph for k in ["doctype","instrumenttype","instrtype","type"]):
+                await page.fill(sel, code)
+                log.info(f"  Filled type: {sel} = {code}")
+                filled = True
+            elif any(k in iid.lower()+nm.lower()+ph for k in ["begindate","startdate","fromdate","datefrom"]):
+                await page.fill(sel, date_from)
+                log.info(f"  Filled from: {sel} = {date_from}")
+            elif any(k in iid.lower()+nm.lower()+ph for k in ["enddate","todate","dateto","thrudate"]):
+                await page.fill(sel, date_to)
+                log.info(f"  Filled to: {sel} = {date_to}")
+
+        if not filled:
+            log.warning(f"  Could not fill type field for {code}")
 
         await asyncio.sleep(1)
-        await ss(page, f"03_{code}_filled")
+        if code == "LP": await ss(page, f"03_{code}_filled")
 
         # Click search
-        await try_click(page, [
-            "#searchButton","a#searchButton",
-            "button:has-text('Search')","a:has-text('Search')",
-            "input[value='Search']","[data-role='button']:has-text('Search')"
-        ])
+        for sel in ["#searchButton","a#searchButton","button:has-text('Search')",
+                    "a:has-text('Search')","input[value='Search']",
+                    "[data-role='button']:has-text('Search')"]:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=1500):
+                    await el.click(timeout=3000)
+                    log.info(f"  Search: {sel}")
+                    break
+            except: pass
 
         await asyncio.sleep(5)
         try: await page.wait_for_load_state("networkidle", timeout=20000)
         except: pass
-        await ss(page, f"04_{code}_results")
 
-        # Collect pages
+        if code == "LP": await ss(page, f"04_{code}_results")
+
+        # Paginate
         pnum = 0
         while True:
             pnum += 1
@@ -303,14 +304,23 @@ async def search_doc_type(page, code, date_from, date_to):
             batch = _parse_results(html, code)
             records.extend(batch)
             log.info(f"  {code} p{pnum}: {len(batch)}")
-            nxt = await try_click(page, [
-                "a:has-text('Next')","button:has-text('Next')",
-                "[aria-label='Next page']",".next-page"
-            ])
+
+            nxt = False
+            for sel in ["a:has-text('Next')","button:has-text('Next')",
+                        "[aria-label='Next page']",".next-page"]:
+                try:
+                    btn = page.locator(sel).first
+                    if await btn.is_visible(timeout=1000):
+                        cls = await btn.get_attribute("class") or ""
+                        dis = await btn.get_attribute("disabled")
+                        if "disabled" not in cls.lower() and dis is None:
+                            await btn.click(timeout=3000)
+                            await asyncio.sleep(2)
+                            try: await page.wait_for_load_state("networkidle",timeout=12000)
+                            except: pass
+                            nxt = True; break
+                except: pass
             if not nxt or pnum > 50: break
-            await asyncio.sleep(2)
-            try: await page.wait_for_load_state("networkidle", timeout=15000)
-            except: pass
 
     except Exception as e:
         log.error(f"{code}: {e}\n{traceback.format_exc()}")
@@ -322,11 +332,10 @@ def _parse_results(html, doc_type):
     for tbl in soup.find_all("table"):
         hdrs = [th.get_text(strip=True).lower() for th in tbl.find_all("th")]
         if not hdrs: continue
-        joined = " ".join(hdrs)
-        if not any(k in joined for k in ["instrument","doc","book","date","filed","grantor","type"]): continue
+        if not any(k in " ".join(hdrs) for k in ["instrument","doc","book","date","filed","grantor"]): continue
         hmap = {}
         for i,h in enumerate(hdrs):
-            if any(k in h for k in ["instrument","doc num","book","number","doc #"]): hmap.setdefault("doc_num",i)
+            if any(k in h for k in ["instrument","doc num","book","number"]): hmap.setdefault("doc_num",i)
             elif "type" in h: hmap.setdefault("doc_type",i)
             elif any(k in h for k in ["record","filed","date"]): hmap.setdefault("filed",i)
             elif "grantor" in h: hmap.setdefault("grantor",i)
@@ -338,16 +347,19 @@ def _parse_results(html, doc_type):
             if len(cells)<2: continue
             texts = [c.get_text(strip=True) for c in cells]
             def get(k): idx=hmap.get(k); return texts[idx] if idx is not None and idx<len(texts) else ""
-            link = next((a["href"] if a["href"].startswith("http") else f"https://selfservice.or.occompt.com{a['href']}"
-                        for a in tr.find_all("a",href=True) if any(k in a["href"].lower() for k in ["doc","instrument","detail","view"])), "")
+            link = next((a["href"] if a["href"].startswith("http") else
+                         f"https://selfservice.or.occompt.com{a['href']}"
+                         for a in tr.find_all("a",href=True)
+                         if any(k in a["href"].lower() for k in ["doc","instrument","detail","view"])),"")
             num = get("doc_num") or (texts[0] if texts else "")
             if not num or num.lower() in ("","instrument","doc #","#"): continue
-            rows.append({"doc_num":num,"doc_type":get("doc_type") or doc_type,"filed":get("filed"),
-                         "grantor":get("grantor"),"grantee":get("grantee"),"amount":get("amount"),
+            rows.append({"doc_num":num,"doc_type":get("doc_type") or doc_type,
+                         "filed":get("filed"),"grantor":get("grantor"),
+                         "grantee":get("grantee"),"amount":get("amount"),
                          "legal":get("legal"),"clerk_url":link})
     return rows
 
-# ── SCORE / ENRICH / CSV (unchanged) ─────────────────────────────────────────
+# ── SCORE / ENRICH / CSV ──────────────────────────────────────────────────────
 
 def compute_score(rec):
     flags,score=[],30
@@ -363,17 +375,16 @@ def compute_score(rec):
     if amt and amt>100000: score+=15; flags.append("High debt (>$100k)")
     elif amt and amt>50000: score+=10; flags.append("Significant debt (>$50k)")
     try:
-        if (datetime.today()-datetime.strptime(filed[:10],"%Y-%m-%d")).days<=7: score+=5; flags.append("New this week")
+        if (datetime.today()-datetime.strptime(filed[:10],"%Y-%m-%d")).days<=7:
+            score+=5; flags.append("New this week")
     except: pass
     if rec.get("prop_address"): score+=5; flags.append("Has address")
     return list(dict.fromkeys(flags)),min(score,100)
 
-def enrich(raw, code, parcel):
+def enrich(raw,code,parcel):
     _,cat_label=LEAD_TYPES.get(code,(code,"Other"))
-    owner_raw=safe_strip(raw.get("grantor",""))
-    amount_str=safe_strip(raw.get("amount",""))
-    amount_raw=parse_amount(amount_str)
-    filed_raw=safe_strip(raw.get("filed",""))
+    owner_raw=safe_strip(raw.get("grantor","")); amount_str=safe_strip(raw.get("amount",""))
+    amount_raw=parse_amount(amount_str); filed_raw=safe_strip(raw.get("filed",""))
     filed_norm=""
     for fmt in ("%m/%d/%Y","%Y-%m-%d","%m-%d-%Y"):
         try: filed_norm=datetime.strptime(filed_raw,fmt).strftime("%Y-%m-%d"); break
@@ -391,10 +402,11 @@ def enrich(raw, code, parcel):
     rec["flags"],rec["score"]=compute_score(rec)
     return rec
 
-def export_csv(records, out_path):
+def export_csv(records,out_path):
     cols=["First Name","Last Name","Mailing Address","Mailing City","Mailing State","Mailing Zip",
           "Property Address","Property City","Property State","Property Zip","Lead Type","Document Type",
-          "Date Filed","Document Number","Amount/Debt Owed","Seller Score","Motivated Seller Flags","Source","Public Records URL"]
+          "Date Filed","Document Number","Amount/Debt Owed","Seller Score","Motivated Seller Flags",
+          "Source","Public Records URL"]
     with open(out_path,"w",newline="",encoding="utf-8") as f:
         w=csv.DictWriter(f,fieldnames=cols); w.writeheader()
         for r in records:
@@ -414,34 +426,46 @@ def export_csv(records, out_path):
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 async def main():
-    now=datetime.today()
-    date_to=now.strftime("%m/%d/%Y")
+    now=datetime.today(); date_to=now.strftime("%m/%d/%Y")
     date_from=(now-timedelta(days=LOOKBACK_DAYS)).strftime("%m/%d/%Y")
     log.info(f"Run: {date_from} → {date_to}")
-
-    parcel=ParcelLookup()
-    parcel.download_and_load()
-
+    parcel=ParcelLookup(); parcel.download_and_load()
     all_records=[]
+
     async with async_playwright() as pw:
         browser=await pw.chromium.launch(
             headless=True,
-            args=["--no-sandbox","--disable-dev-shm-usage","--disable-blink-features=AutomationControlled"]
+            args=["--no-sandbox","--disable-dev-shm-usage",
+                  "--disable-blink-features=AutomationControlled"]
         )
         ctx=await browser.new_context(
             user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
             viewport={"width":1280,"height":900}
         )
         page=await ctx.new_page()
-        await accept_disclaimer(page)
+
+        # Initial disclaimer accept
+        await page.goto(OR_DISCLAIMER, timeout=30000, wait_until="domcontentloaded")
+        await asyncio.sleep(2)
+        status = await page.evaluate("""
+            async () => {
+                const r = await fetch('/ssweb/user/disclaimer', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/x-www-form-urlencoded','ajaxRequest':'true'},
+                    body:'accept=Accept'
+                });
+                return r.status;
+            }
+        """)
+        log.info(f"Initial disclaimer: {status}")
 
         for code in LEAD_TYPES:
             try:
-                raws=await asyncio.wait_for(search_doc_type(page,code,date_from,date_to),timeout=120)
-            except asyncio.TimeoutError:
-                log.warning(f"Timeout: {code}"); raws=[]
-            except Exception as e:
-                log.error(f"{code}: {e}"); raws=[]
+                raws=await asyncio.wait_for(
+                    search_doc_type(page,code,date_from,date_to), timeout=90
+                )
+            except asyncio.TimeoutError: log.warning(f"Timeout: {code}"); raws=[]
+            except Exception as e: log.error(f"{code}: {e}"); raws=[]
             log.info(f"{code}: {len(raws)} raw")
             for raw in raws:
                 try: all_records.append(enrich(raw,code,parcel))
@@ -456,12 +480,10 @@ async def main():
         elif not k: deduped.append(r)
     deduped.sort(key=lambda x:x["score"],reverse=True)
     for r in deduped: r.pop("amount_raw",None)
-
     with_addr=sum(1 for r in deduped if r.get("prop_address"))
     payload={"fetched_at":now.isoformat(),"source":"Orange County Comptroller OR – occompt.com",
              "date_range":{"from":date_from,"to":date_to},"total":len(deduped),
              "with_address":with_addr,"records":deduped}
-
     for p in [DATA_DIR/"records.json",DASHBOARD_DIR/"records.json"]:
         with open(p,"w",encoding="utf-8") as f: json.dump(payload,f,indent=2,default=str)
         log.info(f"Wrote {p}")

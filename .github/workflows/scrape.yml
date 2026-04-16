@@ -2,8 +2,8 @@ name: Scrape Orange County Leads
 
 on:
   schedule:
-    - cron: "0 7 * * *"   # 7:00 AM UTC daily (3:00 AM ET)
-  workflow_dispatch:        # manual trigger from Actions tab
+    - cron: "0 7 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -54,7 +54,8 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name  "github-actions[bot]"
-          git add dashboard/records.json data/records.json data/leads_export.csv || true
+          git add dashboard/records.json data/records.json data/leads_export.csv \
+                  data/debug_*.png data/debug_*.html || true
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else

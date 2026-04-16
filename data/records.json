@@ -1,1 +1,11 @@
-{"fetched_at":null,"source":"Orange County Clerk","date_range":{"from":null,"to":null},"total":0,"with_address":0,"records":[]}
+{
+  "fetched_at": "2026-04-16T00:00:53.534087",
+  "source": "Orange County Comptroller OR \u2013 occompt.com",
+  "date_range": {
+    "from": "04/09/2026",
+    "to": "04/16/2026"
+  },
+  "total": 0,
+  "with_address": 0,
+  "records": []
+}

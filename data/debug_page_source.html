@@ -1,0 +1,667 @@
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en" style="" class="js flexboxlegacy canvas canvastext webgl no-touch geolocation postmessage no-websqldatabase indexeddb hashchange history draganddrop websockets video audio localstorage sessionstorage webworkers no-applicationcache svg inlinesvg smil svgclippaths ui-mobile"><head><base href="https://selfservice.or.occompt.com/ssweb/document/search">
+<script async="" type="text/javascript"> var id = ''; 
+</script>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+
+<!-- Google Analytics -->
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+
+
+	<title></title>
+
+
+
+	<meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1, user-scalable=no">
+	<link rel="apple-touch-icon" href="/ssweb/resources/img/county-logo.png"> 
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/css/themes/self-service-jquery-mobile.css?v=">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/css/themes/jquery.mobile.icons-1.4.5.css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/jquery.mobile.structure-1.4.5.css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/jtsage-datebox-4.1.0.css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/css/materialdesignicons.css?v=">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/resources/css/context-menu-min.css">
+
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/controller/self.service..css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/controller/self.service.responsive..css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/controller/progress/circularG..css">
+	<link rel="stylesheet" media="all" type="text/css" href="/ssweb/controller/progress/tylerProgress..css">
+
+	
+	<link rel="stylesheet" href="/ssweb/controller/customColors.css?v=">
+	<link rel="stylesheet" href="/ssweb/controller/customColors.responsive.css?v=">
+	<link rel="stylesheet" href="/ssweb/controller/facetColors.css?v=">
+	<link rel="stylesheet" href="/ssweb/controller/customColorsLoaders.css?v=">
+	<link rel="stylesheet" href="/ssweb/resources/printjs/print.min.css?v=">
+	<script src="/ssweb/resources/modernizr.custom.03363.js"></script>
+	<script src="/ssweb/resources/jquery-1.11.0.js"></script>
+	<script src="/ssweb/resources/js/moment.min.js"></script>
+	<script src="/ssweb/controller/js/underscore..js"></script>
+	<script src="/ssweb/controller/js/snap.svg..js"></script>
+	<script src="/ssweb/controller/js/self.service..js"></script>
+	<script src="/ssweb/controllerjs/validator..js"></script>
+	<script src="/ssweb/controllerjs/util..js"></script>
+	<script src="/ssweb/resources/shoppingCart.js?v="></script>	
+	<script src="/ssweb/resources/printjs/print.min.js">	</script>
+	<script src="/ssweb/resources/js/context-menu-min.js"></script>
+	
+	<script>
+	$(document).bind( 'mobileinit', function(){
+		$.mobile.loader.prototype.options.html = 	'<div class="cssload-container">\n' +
+			'			<ul class="cssload-loader">\n' +
+			'				<li></li><li></li><li></li><li></li><li></li><li></li>\n' +
+			'			</ul>\n' +
+			'		</div>\n' +
+			'		<div class="modal-overlay"></div>';
+	});
+	</script>
+<!--         When we upgrade to jqm 1.5 remove the jquery tabs override script -->
+	<script src="/ssweb/resources/jquery.mobile-1.4.5.js"></script>
+<!-- 	The following script is to fix a bug with jquery mobile and should be removed when we upgrade to jquerymobile 1.5 -->
+	<script src="/ssweb/resources/js/jqueryTabsOverride.js"></script>
+
+	
+	<script src="/ssweb/controller/messageStrings.js?v="></script>
+
+	<script src="/ssweb/resources/jquery.mousewheel.js?v="></script>
+	<script src="/ssweb/resources/jtsage-datebox-4.1.0.js"></script>
+</head>
+<body class="ui-mobile-viewport ui-overlay-a" style="">
+	<div class="ss-page ui-alt-icon ui-nodisc-icon ui-page ui-page-theme-a ui-page-header-fixed ui-page-footer-fixed ui-page-active" data-role="page" id="page" data-dom-cache="false" data-url="page" tabindex="0" style="min-height: 776px; padding-top: 96px; padding-bottom: 28px;">
+		<script>
+		var selectedLanguage = '';
+		</script>
+		<!-- HEADER	-->
+		<div id="ss-header-box" class="ss-header ui-header ui-bar-inherit ui-header-fixed slidedown" data-role="header" data-position="fixed" data-tap-toggle="false" role="banner">
+			<div class="ss-header-stripe-top"></div>
+			<div class="ss-content">
+				
+				
+
+				<div class="ss-header-actions">
+					
+
+
+
+
+
+	
+	
+		
+		
+			
+		
+	
+
+	
+	<a href="/ssweb/" class="ss-header-actions-home ui-link">
+		<span class="ss-header-labels" id="ss-general-label">Home</span>
+	</a>
+
+
+
+
+	<a href="#languagePanel" class="ss-header-actions-language ui-link">
+		<span class="ss-header-labels" id="ss-general-label">Language</span>
+	</a>
+
+
+
+	
+
+					<div class="ss-clear"></div>
+				</div>
+				<div class="ss-clear"></div>
+			</div>
+			<div class="ss-header-stripe-bottom">
+				<div class="ss-content">
+					<div id="ss-user-welcome" class="ss-footer-internal-small">
+						
+							
+							
+							
+							
+						
+						<span id="subscriptionTimer" class="ss-footer-internal-small-left-align"></span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- BODY -->
+		<div data-role="content" class="ui-content" role="main">
+			<div class="ss-content">
+				
+
+
+
+
+
+<div data-role="content" class="ui-content" role="main">
+	<div class="ss-content">
+		<div class="ss-serious-message">
+			<h2>An error has occurred.</h2>
+			<p>Please add this GUID to any support ticket or communication: 2fcbdf3b-4a92-48be-b4b1-06314f8b5a1b</p>
+<!--
+Failed URL: https://selfservice.or.occompt.com/ssweb/document/search
+Check DB logs for this GUID: 2fcbdf3b-4a92-48be-b4b1-06314f8b5a1b
+It should be around this time: Apr 18, 2026, 5:35:26 AM/>
+-->
+		</div>
+	</div>
+</div>
+			</div>
+		</div>
+
+		<!-- POPUPS	-->
+		
+
+
+
+
+
+
+
+	
+
+
+
+
+
+<div style="display: none;" id="passwordChange-popup-placeholder"><!-- placeholder for passwordChange-popup --></div>
+
+<script>
+
+var passwordChangeUrl = "/ssweb/user/passwordChange";
+$("#passwordChange-popup").on("popupbeforeposition", function() {
+	$("#passwordChangeInternal").load(passwordChangeUrl, function() {
+		$("#passwordChangeInternal").trigger("create");
+		$("#passwordChange-popup").trigger("updatelayout");
+		$.mobile.activePage.trigger("pagecreate");
+	});
+});
+
+$("#passwordChange-popup").on("popupafteropen", function() {	
+	$("#passwordChange-popup").popup("reposition", "positionTo: window");
+});
+
+$("#passwordChange-popup").on("popupafterclose", function() {
+	$("#field_OldPassword").val("");
+	$("#field_NewPassword").val("");
+	$("#field_ConfirmPassword").val("");
+});	
+</script>
+
+		
+		
+
+
+
+
+
+
+<div style="display: none;" id="session-popup-placeholder"><!-- placeholder for session-popup --></div>
+
+<script>
+
+selfservice.countdown.continueButton = $('#session-continue');
+selfservice.countdown.element = $('#remainingTime');
+selfservice.countdown.logoutButton = $('#session-logout');
+selfservice.pages.check = '/ssweb/session/checkSession';
+selfservice.pages.home = '/ssweb/';
+selfservice.pages.logout = '/ssweb/user/logout';
+selfservice.pages.ping = '/ssweb/session/pingSession';
+selfservice.session.logoutError = 'An error occurred while logging out. Please try again.';
+selfservice.session.timeoutElement = $('#session-popup');
+
+
+selfservice.countdown.continueButton.on('click', function (event) {
+	selfservice.countdown.continueButton.prop('disabled', true);
+	selfservice.countdown.logoutButton.prop('disabled', true);
+
+	selfservice.session.continueSession();
+
+	selfservice.countdown.continueButton.prop('disabled', false);
+	selfservice.countdown.logoutButton.prop('disabled', false);
+
+	selfservice.session.timeoutElement.popup('close');
+});
+
+selfservice.countdown.logoutButton.on('click', function (event) {
+	
+	selfservice.countdown.logoutButton.prop('disabled', true);
+	selfservice.countdown.logoutButton.html('Logging out...');
+	selfservice.countdown.continueButton.prop('disabled', true);
+
+	selfservice.session.logout();
+
+	selfservice.countdown.continueButton.prop('disabled', false);
+	selfservice.countdown.logoutButton.html('No - Start Over');
+	selfservice.countdown.logoutButton.prop('disabled', false);
+});
+
+selfservice.session.timeoutElement.on('popupafterclose', function (event) {
+	
+	selfservice.countdown.endCount();
+});
+</script>
+
+		<!-- PANELS	-->
+		
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+<div id="cartPanel" class="ss-panel-cart ui-panel ui-panel-position-right ui-panel-display-overlay ui-panel-closed ui-body-inherit ui-panel-fixed ui-panel-animate" data-role="panel" data-position="right" data-display="overlay" data-position-fixed="true">
+	<div class="ui-panel-inner" style="height: 880px;"><div id="cartPanelInternal" class="ss-panel-cart-internal" style="height: 100%; max-height: 880px;">
+
+
+
+
+
+
+<form id="SelfService-1776504927247-cart-form" action="/ssweb/cart" style="height:100%;">
+
+<style>
+	ul[id$='savedItemsViewEmbedded'] {
+		margin-top: 0px;
+		max-height: calc(100% - 250px);
+		overflow: auto;
+	}
+
+	ul[id$='shoppingCartView'] {
+		margin-top: 0px;
+		max-height: calc(100% - 250px);
+		overflow: auto;
+	}
+
+	@media ( max-width : 736px) {
+		ul[id$='savedItemsViewEmbedded'] {
+			margin-top: 0px;
+			max-height: calc(100% - 275px);
+			overflow: auto;
+		}
+		ul[id$='shoppingCartView'] {
+			margin-top: 0px;
+			max-height: calc(100% - 275px);
+			overflow: auto;
+		}
+	}
+</style>
+
+ 
+
+
+
+
+
+
+<ul class="ss-listview ss-cart-item-table ui-listview ui-group-theme-b" data-role="listview" data-theme="b" style="margin-bottom:0px; border-bottom:none;">
+	<li id="SelfService-1776504927247-shoppingCart" data-role="list-divider" role="heading" class="ui-li-divider ui-bar-b ui-first-child ui-last-child">Shopping Cart&nbsp;</li>
+</ul>
+<ul id="SelfService-1776504927247-shoppingCartView" class="ss-listview ss-cart-item-table ui-listview ui-group-theme-b" data-role="listview" data-theme="b">
+	
+	
+	
+		<li class="ui-li-static ui-body-inherit ui-first-child ui-last-child"><em>Your cart is empty.</em></li>
+	
+	
+
+</ul>
+
+
+
+
+
+<script>
+$(".ss-cart-item-desc").click(function(evt) {
+	if (evt.target.nodeName === "INPUT") {
+		evt.preventDefault();
+		window.setTimeout(function() { $("a").removeClass('ui-btn-active ui-focus'); }, 1);
+	}
+});
+
+	var throttled = _.debounce(function(evt) { updateCartItemNumberOfCopies(evt); }, 500 );
+
+$('.ss-cart-item-desc input[type=number]').change(function(evt) {
+	window["throttled"](evt);
+});
+
+$('.ss-cart-item-desc input[type=number]').keydown(function(evt) {
+	var key = selfservice.determineKeyCodeProperty(evt);
+
+	if (selfservice.userPressedValidKeyForInputNumberTypeBox(key)) {
+		window["throttled"](evt);
+	} else {
+		evt.preventDefault();
+	}
+});
+</script> 
+
+
+
+
+
+	<div style="display: none;" id="SelfService-1776504927247-confirmRemove-placeholder"><!-- placeholder for SelfService-1776504927247-confirmRemove --></div>
+
+	<div style="display: none;" id="SelfService-1776504927247-confirmRemoveFailed-placeholder"><!-- placeholder for SelfService-1776504927247-confirmRemoveFailed --></div>
+	
+	<script>
+	  
+		$('#confirm-remove-from-cart').on('click', function(event) {
+			event.preventDefault();
+			removeConfirmed('SelfService-1776504927247-confirmClearCartEmbed');
+			return false;
+		});
+
+		$('#cancel-remove-from-cart').on('click', function(event) {
+			event.preventDefault();
+			$('#SelfService-1776504927247-confirmClearCartEmbed').popup('close', {
+				transition: 'pop'
+			});
+			return false;
+		});
+
+		$('#confirm-clear-cart-embedded').on('click', function(event) {
+			event.preventDefault();
+			$('#SelfService-1776504927247-confirmClearCartEmbedFailed').popup('close', {
+				transition: 'pop'
+			});
+			return false;
+		});
+
+		$("#SelfService-1776504927247-shoppingCartClearCartButton").on('click', function(event) {
+			event.preventDefault();
+			var cartPanel = $('.ss-panel-cart-internal');
+			confirmClearCart('SelfService-1776504927247-confirmClearCartEmbed', cartPanel);
+		});
+	
+
+	$('#confirm-remove-savedItems').on('click', function(event) {
+		event.preventDefault();
+		removeConfirmed('SelfService-1776504927247-confirmClearSavedItemsEmbed');
+		return false;
+	});
+
+	$('#cancel-remove-savedItems').on('click', function(event) {
+		event.preventDefault();
+		$('#SelfService-1776504927247-confirmClearSavedItemsEmbed').popup('close', {
+			transition: 'pop'
+		});
+		return false;
+	});
+
+	$('#confirm-clear-savedItems-embedded').on('click', function(event) {
+		event.preventDefault();
+		$('#SelfService-1776504927247-confirmClearSavedItemsEmbedFailed').popup('close', {
+			transition: 'pop'
+		});
+		return false;
+		});
+
+	$("#SelfService-1776504927247-shoppingCartClearSavedButton").on('click', function(event) {
+		event.preventDefault();
+		var cartPanel = $('.ss-panel-cart-internal');
+		confirmClearSaveItems('SelfService-1776504927247-confirmClearSavedItemsEmbed', cartPanel);
+});
+
+	$(document.body).on('blur', "input[id$='cartItemQuantity']", function(event) {
+		verifyCartItemQuantity(event.target.id, parseInt(event.target.min), parseInt(event.target.max));
+	});
+
+	$('#shoppingCartProceedToCheckoutButton, #shoppingCartProceedToSavedItems').on('click', function(event) {
+		event.preventDefault();
+		verifyCartItemQuantities(this, 1, 100);
+		return false;
+	});
+
+	$('#wrong-number-of-copies').on('click', function(event) {
+		event.preventDefault();
+		$('#shoppingCartProductQuantityError').popup('close', {
+			transition: 'pop'
+		});
+		return false; 
+	});
+
+	$('.ss-embedded-saved').on('click', function(event) {
+		var target=$(event.target);
+		var cartId = target.closest('.split-cart-button-controller').data('cartid');
+		saveCartItemForLater(target, cartId, false, true);
+	});
+
+	$('.ss-embedded-notsaved').on('click', function(event) {
+		var target=$(event.target);
+		var cartId = target.closest('.split-cart-button-controller').data('cartid');
+		saveCartItemForLater(target, cartId, true, true);
+	});
+	</script>
+</form></div></div>
+</div>
+<script>
+
+$("#cartPanel").on("panelcreate", function() {
+	$("#cartPanelInternal").data("cartUrl", "/ssweb/cart/embedded?includeButtons=true&request=" + new Date().getTime());
+	$("#cartPanelInternal").css("max-height", $( window ).height() -20);
+	reloadShoppingCart($("#cartPanelInternal"));
+});
+	
+$("#cartPanel").on("panelbeforeopen", function() {
+	$("#cartPanelInternal").data("cartUrl", "/ssweb/cart/embedded?includeButtons=true&request=" + new Date().getTime());
+	reloadShoppingCart($("#cartPanelInternal"));
+});
+	
+$("#cartPanel").on("panelopen", function() {	
+	$("#shoppingCartProceedToCheckoutButton").focus();
+});	
+</script>
+  <br>
+
+  
+
+
+
+
+
+
+<div id="loginPanel" class="ss-panel-login ui-panel ui-panel-position-right ui-panel-display-overlay ui-panel-closed ui-body-inherit ui-panel-fixed ui-panel-animate" data-role="panel" data-position="right" data-display="overlay" data-position-fixed="true">
+	<div class="ui-panel-inner"><div id="loginPanelInternal" class="ss-panel-login-internal"></div></div>
+</div>
+
+<script>
+
+var loginUrl = "/ssweb/user/login";
+$("#loginPanel").on("panelbeforeopen", function() {
+	$("#loginPanelInternal").load(loginUrl + "?request=" + new Date().getTime(), function() {
+		$("#loginPanelInternal").trigger("create");
+		$("#loginPanel").trigger("updatelayout");
+		$.mobile.activePage.trigger("pagecreate");
+		$("#field_ForceLogoff").parent().hide();
+	});
+}).on("panelopen", function() {
+	$("#field_UserId").focus();
+});
+</script>
+  <br>
+
+  
+
+
+
+
+
+
+<div id="languagePanel" class="ss-panel-language ui-panel ui-panel-position-right ui-panel-display-overlay ui-panel-closed ui-body-inherit ui-panel-fixed ui-panel-animate" data-role="panel" data-position="right" data-display="overlay" data-position-fixed="true">
+	<div class="ui-panel-inner"><div id="languagePanelInternal" class="ss-panel-language-internal"></div></div>
+</div>
+
+<script>
+
+var languageUrl = "/ssweb/user/language";
+$("#languagePanel").on("panelbeforeopen", function() {
+	$("#languagePanelInternal").load(languageUrl + "?request=" + new Date().getTime(), function() {
+		$("#languagePanelInternal").trigger("create");
+		$("#languagePanel").trigger("updatelayout");
+		$.mobile.activePage.trigger("pagecreate");
+	});
+}).on("panelopen", function() {
+	$("#language-en").focus();
+});
+</script>
+  <br>
+
+
+		<script>
+		
+		jQuery.cachedScript = function( url, options ) {
+			
+			options = $.extend( options || {}, {
+				dataType: 'script',
+				cache: true,
+				url: url
+			});
+
+			
+			return jQuery.ajax( options );
+		};
+
+		$('#page').on('pageinit', function() {
+			
+			selfservice.countdown.timer();
+		});
+
+		$(document.body).on("blur", 'input[data-role="datebox"]', function(event){
+			selfservice.parseDate(event.target);
+		});
+		</script>
+
+		<!-- FOOTER -->
+		<div id="ss-footer-box" class="ss-footer ui-footer ui-bar-inherit ui-footer-fixed slideup" data-role="footer" data-position="fixed" data-tap-toggle="false" role="contentinfo">
+			
+<div class="ss-footer-stripe"></div>
+			<div class="ss-content">
+				<div class="ss-footer-internal-small">
+					©&nbsp;&nbsp;|&nbsp;
+				</div>
+			</div>
+		</div>
+	<div class="ui-screen-hidden ui-popup-screen ui-overlay-inherit" id="passwordChange-popup-screen"></div><div class="ui-popup-container ui-popup-hidden ui-popup-truncate slide" id="passwordChange-popup-popup"><div data-role="popup" id="passwordChange-popup" class="ss-password-change-popup ui-content ui-popup ui-body-inherit ui-overlay-shadow ui-corner-all" data-history="false" data-position-to="window" data-transition="slide">
+	<a href="#" data-rel="back" data-role="button" data-icon="delete" data-iconpos="notext" class="ui-btn-right ui-link ui-btn ui-icon-delete ui-btn-icon-notext ui-shadow ui-corner-all" role="button">Close</a>
+	<div id="passwordChangeInternal" class="ss-password-change-popup-internal"></div>
+</div></div><div class="ui-screen-hidden ui-popup-screen ui-overlay-a" id="session-popup-screen"></div><div class="ui-popup-container ui-popup-hidden ui-popup-truncate slide" id="session-popup-popup"><div data-role="popup" id="session-popup" data-dismissible="false" data-history="false" data-position-to="window" data-overlay-theme="a" class="ui-page-theme-a ui-content ui-alt-icon ui-nodisc-icon ui-popup ui-body-inherit ui-overlay-shadow ui-corner-all" data-transition="slide" style="background: white;">
+	<div data-role="header" class="ss-receipt-width ui-header ui-bar-inherit" style="background-color: #06c; line-height: 1.3; margin: 0.9em;" role="banner">
+		<h1 style="font-size: 1.3em; padding: 1em 1.5em; color: white; font-weight: normal; text-overflow: inherit; overflow: visible;" class="ui-title" role="heading" aria-level="1">Session about to time out</h1> 
+	</div>
+	<div style="padding: 10px; background-color: white;">
+		<h2>Do you need more time? <span id="remainingTime"></span></h2>
+		<button id="session-continue" type="button" class="ui-btn ui-btn-b ui-icon-check ui-btn-icon-left ui-shadow ui-corner-all">
+		Yes - Continue
+		</button>
+		<button id="session-logout" type="button" class="ui-btn ui-btn-b ui-icon-delete ui-btn-icon-left ui-shadow ui-corner-all">
+		No - Start Over
+		</button>
+	</div>
+</div></div><div class="ui-screen-hidden ui-popup-screen ui-overlay-inherit" id="SelfService-1776504927247-confirmRemove-screen"></div><div class="ui-popup-container ui-popup-hidden ui-popup-truncate" id="SelfService-1776504927247-confirmRemove-popup"><div data-role="popup" id="SelfService-1776504927247-confirmRemove" data-dismissible="false" class="ui-popup ui-body-inherit ui-overlay-shadow ui-corner-all">
+		<div data-role="header" data-theme="a" role="banner" class="ui-header ui-bar-a">
+			<h1 class="ui-title" role="heading" aria-level="1">Remove Item?</h1>
+		</div>
+		<div role="main" class="ui-content">
+			<h3 class="ui-title">Are you sure you want to remove this item?</h3>
+			<div class="ui-grid-a">
+				<div class="ui-block-a">
+					<a href="#" data-role="button" data-theme="a" onclick="removeConfirmed('SelfService-1776504927247-confirmRemove');" class="ui-link ui-btn ui-btn-a ui-shadow ui-corner-all" role="button">Remove</a>
+				</div>
+				<div class="ui-block-b">
+					<a href="#" data-role="button" data-theme="a" onclick="$('#SelfService-1776504927247-confirmRemove').popup('close', {transition: 'pop'});return false;" class="ui-link ui-btn ui-btn-a ui-shadow ui-corner-all" role="button">Cancel</a>
+				</div>
+			</div>
+		</div>
+	</div></div><div class="ui-screen-hidden ui-popup-screen ui-overlay-inherit" id="SelfService-1776504927247-confirmRemoveFailed-screen"></div><div class="ui-popup-container ui-popup-hidden ui-popup-truncate" id="SelfService-1776504927247-confirmRemoveFailed-popup"><div data-role="popup" id="SelfService-1776504927247-confirmRemoveFailed" data-dismissible="false" class="ui-popup ui-body-inherit ui-overlay-shadow ui-corner-all">
+		<div data-role="header" data-theme="a" role="banner" class="ui-header ui-bar-a">
+			<h1 class="ui-title" role="heading" aria-level="1">error</h1>
+		</div>
+		<div role="main" class="ui-content">
+		<h3 class="ui-title">We're sorry. An error occurred while attempting to remove this item.</h3>
+			<div class="ui-grid-solo">
+				<a href="#" data-role="button" data-theme="a" onclick="$('#SelfService-1776504927247-confirmRemoveFailed').popup('close', {transition: 'pop'});return false;" class="ui-link ui-btn ui-btn-a ui-shadow ui-corner-all" role="button">OK</a>
+			</div>
+		</div>
+	</div></div></div>
+	<script>
+	
+	function initializeSessionTimerChecks() {
+		if (selfservice.mode.kioskMode == undefined) {
+			var test = '';
+			if (!test) {
+				selfservice.mode.kioskMode = false;
+			} else {
+				selfservice.mode.kioskMode = booleanValue('');
+			}
+		}
+
+		if (selfservice.session.userLoggedIn == undefined) {
+			selfservice.session.userLoggedIn = booleanValue('false');
+		}
+
+		if (selfservice.url.homePage == undefined) {
+			selfservice.url.homePage = window.location.origin + '/ssweb/';
+		}
+		if(selfservice.setting.showDisclaimer == undefined){
+			selfservice.setting.showDisclaimer = booleanValue('')
+		}
+	
+		if( selfservice.pages.disclaimer == undefined){
+			 selfservice.pages.disclaimer = '/ssweb/user/disclaimer';
+		}
+	}
+
+	$(document).keydown(function(e) {
+		selfservice.maybeScrollScreen(e);
+	});
+
+	$(document).on('pageinit', function(event) {
+		initializeSessionTimerChecks();
+
+		
+		selfservice.session.continueSession();
+
+		
+			var subscriptionTimerId = $('#subscriptionTimer').attr('id');
+			selfservice.subscriptionTimer.setSubscriptionTime(subscriptionTimerId, '/ssweb/subscription/getSubscriptionTime');
+		});
+
+	$( document ).ajaxComplete(function( event, request, settings ) {
+		if(request.getResponseHeader('isThresholdReached') === "true"){
+			location.reload();
+		}
+	});
+	
+	$.ajaxSetup({
+	    beforeSend: function(xhr) {
+	        xhr.setRequestHeader('ajaxRequest', true);
+	    }
+	});
+
+	function removeDisclaimerCookie(){
+		var context = "/ssweb/";
+		context = context.split('/').join('')
+		document.cookie = "disclaimerAccepted=; Path=/" + context + "; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+	}
+	
+	</script>
+
+<div class="ui-panel-dismiss"></div><div class="ui-loader ui-corner-all ui-body-a ui-loader-default"><div class="cssload-container">
+			<ul class="cssload-loader">
+				<li></li><li></li><li></li><li></li><li></li><li></li>
+			</ul>
+		</div>
+		<div class="modal-overlay"></div></div><div class="ui-panel-dismiss"></div><div class="ui-panel-dismiss"></div></body></html>
